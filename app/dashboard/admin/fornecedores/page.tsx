@@ -7,6 +7,7 @@ import type { User } from "@/types"
 import { FornecedorManagement } from "@/components/fornecedor-management"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
+import { FornecedorFormDialog } from "@/components/fornecedor-form-dialog"
 
 export default function FornecedoresPage() {
   const { user } = useAuth()
@@ -46,7 +47,10 @@ export default function FornecedoresPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold">Fornecedores</h1>
+      <div className="flex justify-between items-center">
+        <h1 className="text-2xl font-bold">Fornecsedores</h1>
+        <FornecedorFormDialog onFornecedorCreated={fetchFornecedores} />
+      </div>
 
       <Card>
         <CardHeader>

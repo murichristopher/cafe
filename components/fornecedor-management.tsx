@@ -5,7 +5,7 @@ import type { User } from "@/types"
 import { supabase } from "@/lib/supabase"
 import { Button } from "@/components/ui/button"
 import { toast } from "@/components/ui/use-toast"
-import { Trash2, Edit, UserPlus } from "lucide-react"
+import { Trash2, Edit } from "lucide-react"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -16,6 +16,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
+import { FornecedorFormDialog } from "@/components/fornecedor-form-dialog"
 
 interface FornecedorManagementProps {
   fornecedores: User[]
@@ -73,10 +74,7 @@ export function FornecedorManagement({ fornecedores, onUpdate }: FornecedorManag
     <div className="space-y-4">
       <div className="flex justify-between items-center">
         <h2 className="text-xl font-bold">Gerenciar Fornecedores</h2>
-        <Button variant="outline" size="sm">
-          <UserPlus className="mr-2 h-4 w-4" />
-          Adicionar Fornecedor
-        </Button>
+        <FornecedorFormDialog onFornecedorCreated={onUpdate} />
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">

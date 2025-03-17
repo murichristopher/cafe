@@ -20,6 +20,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
+import { FornecedorFormDialog } from "@/components/fornecedor-form-dialog"
 
 export default function FornecedoresPage() {
   const { user } = useAuth()
@@ -126,6 +127,7 @@ export default function FornecedoresPage() {
     <div className="space-y-6">
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <h1 className="text-2xl font-bold">Fornecedores</h1>
+        {user?.role === "admin" && <FornecedorFormDialog />}
       </div>
 
       <div className="relative">
