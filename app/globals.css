@@ -1,0 +1,120 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Fundo principal - preto suave */
+    --background: 0 0% 9%;
+    --foreground: 0 0% 98%;
+
+    /* Cartões - preto mais claro */
+    --card: 0 0% 13%;
+    --card-foreground: 0 0% 98%;
+
+    /* Popover - preto mais claro */
+    --popover: 0 0% 13%;
+    --popover-foreground: 0 0% 98%;
+
+    /* Cor primária - mantendo o dourado/amarelo */
+    --primary: 45 100% 50%;
+    --primary-foreground: 0 0% 0%;
+
+    /* Secundária - cinza muito escuro */
+    --secondary: 0 0% 15%;
+    --secondary-foreground: 0 0% 98%;
+
+    /* Muted - cinza escuro */
+    --muted: 0 0% 15%;
+    --muted-foreground: 0 0% 75%;
+
+    /* Accent - cinza escuro */
+    --accent: 0 0% 15%;
+    --accent-foreground: 0 0% 98%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 98%;
+
+    /* Bordas - cinza muito escuro */
+    --border: 0 0% 18%;
+    --input: 0 0% 18%;
+    --ring: 45 100% 50%;
+
+    --radius: 0.5rem;
+  }
+
+  .dark {
+    /* Mantendo as mesmas cores do tema claro para consistência */
+    --background: 0 0% 9%;
+    --foreground: 0 0% 98%;
+    --card: 0 0% 13%;
+    --card-foreground: 0 0% 98%;
+    --popover: 0 0% 13%;
+    --popover-foreground: 0 0% 98%;
+    --primary: 45 100% 50%;
+    --primary-foreground: 0 0% 0%;
+    --secondary: 0 0% 15%;
+    --secondary-foreground: 0 0% 98%;
+    --muted: 0 0% 15%;
+    --muted-foreground: 0 0% 75%;
+    --accent: 0 0% 15%;
+    --accent-foreground: 0 0% 98%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 0 0% 18%;
+    --input: 0 0% 18%;
+    --ring: 45 100% 50%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+/* Custom utility classes for the Eleve theme */
+@layer utilities {
+  .bg-eleve-black {
+    @apply bg-black;
+  }
+
+  .bg-eleve-gold {
+    @apply bg-yellow-400;
+  }
+
+  .text-eleve-gold {
+    @apply text-yellow-400;
+  }
+
+  .border-eleve-gold {
+    @apply border-yellow-400;
+  }
+
+  .hover-eleve-gold {
+    @apply hover:bg-yellow-400 hover:text-black transition-colors;
+  }
+
+  .btn-eleve {
+    @apply bg-yellow-400 text-black hover:bg-yellow-500 transition-colors;
+  }
+
+  .btn-eleve-outline {
+    @apply border border-yellow-400 text-yellow-400 hover:bg-yellow-400 hover:text-black transition-colors;
+  }
+
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  /* Ajuste para o conteúdo principal não ficar escondido atrás da barra de navegação móvel */
+  @media (max-width: 768px) {
+    .main-content {
+      padding-bottom: calc(4rem + env(safe-area-inset-bottom));
+    }
+  }
+}
+
