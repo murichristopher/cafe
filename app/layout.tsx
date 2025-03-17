@@ -8,15 +8,14 @@ import { Toaster } from "@/components/ui/toaster"
 const inter = Inter({ subsets: ["latin"] })
 
 export const metadata = {
-  title: "JSON | VIEWER",
-  description: "Json Viewer",
+  title: "Eleve",
+  description: "Eleve",
   manifest: "/manifest.json",
-  keywords: ["json viewer", "technology", "web application"]
+  keywords: ["eleve admin"]
 };
 
-// Move themeColor from metadata to viewport
 export const viewport = {
-  themeColor: "#FFD700", // Gold color
+  themeColor: "#FFD700",
 }
 
 export default function RootLayout({

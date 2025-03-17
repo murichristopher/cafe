@@ -4,7 +4,7 @@ import { supabase } from "@/lib/supabase"
 
 // Get the base URL from environment variable
 const getBaseUrl = () => {
-  return process.env.NEXT_PUBLIC_APP_URL || "https://cafe-da-manha.vercel.app"
+  return process.env.NEXT_PUBLIC_APP_URL || "https://v0-cafe-psi.vercel.app"
 }
 
 // Format time from date
