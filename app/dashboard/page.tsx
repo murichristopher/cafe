@@ -17,6 +17,7 @@ import {
   User,
   Mail,
   Phone,
+  DollarSign,
 } from "lucide-react"
 import { useAuth } from "@/contexts/auth-context"
 import { supabase } from "@/lib/supabase"
@@ -52,6 +53,13 @@ export default function DashboardPage() {
       concluido: 0,
     },
     fornecedorStats: [] as FornecedorStats[],
+    paymentStats: {
+      pendente: 0,
+      aguardando: 0,
+      pago: 0,
+      total: 0,
+      pendingEvents: [] as EventWithFornecedor[],
+    },
   })
 
   const getStatusColor = (status: string) => {
@@ -89,7 +97,9 @@ export default function DashboardPage() {
     setIsLoading(true)
 
     try {
-      let query = supabase.from("events").select("*, fornecedor:fornecedor_id(id, name, email)")
+      let query = supabase
+        .from("events")
+        .select("*, fornecedor:fornecedor_id(id, name, email), pagamento, dia_pagamento")
 
       if (user?.role === "fornecedor") {
         // Se for fornecedor, filtrar apenas os eventos dele
@@ -153,6 +163,15 @@ export default function DashboardPage() {
     const nonCancelledEvents = eventsData.filter((e) => e.status !== "cancelado").length
     const completionRate = nonCancelledEvents > 0 ? Math.round((concluido / nonCancelledEvents) * 100) : 0
 
+    // Payment stats
+    const pagamentoPendente = eventsData.filter((e) => e.pagamento === "pendente").length
+    const pagamentoAguardando = eventsData.filter((e) => e.pagamento === "aguardando").length
+    const pagamentoPago = eventsData.filter((e) => e.pagamento === "pago").length
+    const pendingPaymentEvents = eventsData
+      .filter((e) => e.pagamento === "pendente" || e.pagamento === "aguardando")
+      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+      .slice(0, 5)
+
     // Estatísticas por fornecedor (apenas para admin)
     let fornecedorStats = []
 
@@ -176,6 +195,13 @@ export default function DashboardPage() {
         concluido,
       },
       fornecedorStats,
+      paymentStats: {
+        pendente: pagamentoPendente,
+        aguardando: pagamentoAguardando,
+        pago: pagamentoPago,
+        total: eventsData.length,
+        pendingEvents: pendingPaymentEvents,
+      },
     })
   }
 
@@ -214,6 +240,34 @@ export default function DashboardPage() {
         description: "Ocorreu um erro ao exportar os dados. Tente novamente.",
         variant: "destructive",
       })
+    }
+  }
+
+  // Add a function to get payment status color
+  const getPaymentStatusColor = (status: string) => {
+    switch (status) {
+      case "pendente":
+        return "bg-red-100 text-red-800"
+      case "aguardando":
+        return "bg-yellow-100 text-yellow-800"
+      case "pago":
+        return "bg-green-100 text-green-800"
+      default:
+        return "bg-gray-100 text-gray-800"
+    }
+  }
+
+  // Add a function to get payment status text
+  const getPaymentStatusText = (status: string) => {
+    switch (status) {
+      case "pendente":
+        return "Pendente"
+      case "aguardando":
+        return "Aguardando"
+      case "pago":
+        return "Pago"
+      default:
+        return "Não definido"
     }
   }
 
@@ -378,38 +432,92 @@ export default function DashboardPage() {
               </Card>
             )}
 
-            {/* Para fornecedores, mostrar um card com informações específicas */}
-            {user?.role === "fornecedor" && (
+            {/* Payment Status Card - apenas para admin */}
+            {user?.role === "admin" && (
               <Card className="bg-[#1a1a1a] dark:bg-[#1a1a1a] border-zinc-800 shadow-md">
                 <CardHeader>
                   <CardTitle className="flex items-center">
-                    <User className="mr-2 h-5 w-5 text-yellow-400" />
-                    Suas Informações
+                    <DollarSign className="mr-2 h-5 w-5 text-yellow-400" />
+                    Status de Pagamento
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
-                    <div className="flex items-center text-sm text-gray-300">
-                      <Mail className="mr-2 h-4 w-4 text-yellow-500" />
-                      Email: {user.email}
-                    </div>
-                    {user.phone_number && (
-                      <div className="flex items-center text-sm text-gray-300">
-                        <Phone className="mr-2 h-4 w-4 text-yellow-500" />
-                        Telefone: {user.phone_number}
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-gray-300">Pendentes</span>
+                        <span className="text-gray-300">{stats.paymentStats.pendente}</span>
                       </div>
-                    )}
-                    <div className="mt-4 p-3 bg-yellow-900/20 rounded-md">
-                      <p className="text-sm text-yellow-300">
-                        Lembre-se de enviar as fotos dos eventos para aprovação. Eventos com todas as fotos enviadas
-                        podem ser submetidos para revisão.
-                      </p>
+                      <Progress
+                        value={(stats.paymentStats.pendente / stats.paymentStats.total) * 100 || 0}
+                        className="h-2 bg-zinc-800"
+                      >
+                        <div className="h-full bg-red-500" />
+                      </Progress>
+                    </div>
+
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-gray-300">Aguardando</span>
+                        <span className="text-gray-300">{stats.paymentStats.aguardando}</span>
+                      </div>
+                      <Progress
+                        value={(stats.paymentStats.aguardando / stats.paymentStats.total) * 100 || 0}
+                        className="h-2 bg-zinc-800"
+                      >
+                        <div className="h-full bg-yellow-500" />
+                      </Progress>
+                    </div>
+
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-gray-300">Pagos</span>
+                        <span className="text-gray-300">{stats.paymentStats.pago}</span>
+                      </div>
+                      <Progress
+                        value={(stats.paymentStats.pago / stats.paymentStats.total) * 100 || 0}
+                        className="h-2 bg-zinc-800"
+                      >
+                        <div className="h-full bg-green-500" />
+                      </Progress>
                     </div>
                   </div>
                 </CardContent>
               </Card>
             )}
           </div>
+
+          {/* Para fornecedores, mostrar um card com informações específicas */}
+          {user?.role === "fornecedor" && (
+            <Card className="bg-[#1a1a1a] dark:bg-[#1a1a1a] border-zinc-800 shadow-md">
+              <CardHeader>
+                <CardTitle className="flex items-center">
+                  <User className="mr-2 h-5 w-5 text-yellow-400" />
+                  Suas Informações
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div className="flex items-center text-sm text-gray-300">
+                    <Mail className="mr-2 h-4 w-4 text-yellow-500" />
+                    Email: {user.email}
+                  </div>
+                  {user.phone_number && (
+                    <div className="flex items-center text-sm text-gray-300">
+                      <Phone className="mr-2 h-4 w-4 text-yellow-500" />
+                      Telefone: {user.phone_number}
+                    </div>
+                  )}
+                  <div className="mt-4 p-3 bg-yellow-900/20 rounded-md">
+                    <p className="text-sm text-yellow-300">
+                      Lembre-se de enviar as fotos dos eventos para aprovação. Eventos com todas as fotos enviadas podem
+                      ser submetidos para revisão.
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Próximos eventos */}
           <div className="space-y-4">
@@ -494,6 +602,54 @@ export default function DashboardPage() {
               </div>
             )}
           </div>
+
+          {/* Eventos com pagamento pendente - apenas para admin */}
+          {user?.role === "admin" && stats.paymentStats.pendingEvents.length > 0 && (
+            <div className="space-y-4">
+              <h2 className="text-xl font-bold">Eventos com Pagamento Pendente</h2>
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                {stats.paymentStats.pendingEvents.map((event) => (
+                  <motion.div
+                    key={event.id}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.3 }}
+                  >
+                    <Link href={`/dashboard/events/${event.id}`}>
+                      <Card className="h-full cursor-pointer transition-shadow hover:shadow-lg bg-[#1a1a1a] dark:bg-[#1a1a1a] border-zinc-800">
+                        <CardHeader className="pb-2">
+                          <div className="flex items-center justify-between">
+                            <Badge className={getPaymentStatusColor(event.pagamento)}>
+                              {getPaymentStatusText(event.pagamento)}
+                            </Badge>
+                          </div>
+                          <CardTitle className="text-lg mt-2 text-white">{event.title}</CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-3">
+                          <div className="flex items-center text-sm text-gray-400">
+                            <Calendar className="mr-2 h-4 w-4 text-yellow-500" />
+                            {format(new Date(event.date), "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
+                          </div>
+                          {event.dia_pagamento && (
+                            <div className="flex items-center text-sm text-gray-400">
+                              <DollarSign className="mr-2 h-4 w-4 text-yellow-500" />
+                              Data de Pagamento: {format(new Date(event.dia_pagamento), "dd/MM/yyyy", { locale: ptBR })}
+                            </div>
+                          )}
+                          {event.fornecedor && (
+                            <div className="flex items-center text-sm text-gray-400">
+                              <Users className="mr-2 h-4 w-4 text-yellow-500" />
+                              Fornecedor: {event.fornecedor.name}
+                            </div>
+                          )}
+                        </CardContent>
+                      </Card>
+                    </Link>
+                  </motion.div>
+                ))}
+              </div>
+            </div>
+          )}
         </>
       )}
 
