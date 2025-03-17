@@ -1,26 +1,12 @@
 {
-  "name": "Café",
-  "short_name": "Café",
+  "name": "Eleve",
+  "short_name": "Eleve",
   "start_url": "/login",
-  "description": "Café",
+  "description": "Eleve",
   "display": "standalone",
   "background_color": "#fdfdfd",
   "theme_color": "#aaa",
   "orientation": "portrait-primary",
-  "screenshots": [
-    {
-      "src": "/screenshots/screenshot-wide.png",
-      "sizes": "1280x720",
-      "type": "image/png",
-      "form_factor": "wide"
-    },
-    {
-      "src": "/screenshots/screenshot-mobile.png",
-      "sizes": "750x1334",
-      "type": "image/png",
-      "form_factor": "narrow"
-    }
-  ],
   "icons": [
     {
       "purpose": "maskable",
