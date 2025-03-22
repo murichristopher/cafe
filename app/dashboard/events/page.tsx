@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { motion } from "framer-motion"
-import { Plus, Download, Loader2, Trash2, Grid, List, Eye, Edit } from "lucide-react"
+import { Plus, Download, FileSpreadsheet, Loader2, Trash2, Grid, List, Eye, Edit } from "lucide-react"
 import { useAuth } from "@/contexts/auth-context"
 import { supabase } from "@/lib/supabase"
 import type { EventWithFornecedores, User } from "@/types"
@@ -12,6 +12,7 @@ import { EventCard } from "@/components/event-card"
 import { EventFilters } from "@/components/event-filters"
 import { useToast } from "@/hooks/use-toast"
 import { exportEventsToCSV } from "@/lib/csv-export"
+import { exportEventsToExcel } from "@/lib/excel-export"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import {
   AlertDialog,
@@ -24,6 +25,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { format } from "date-fns"
 import { ptBR } from "date-fns/locale"
 
@@ -34,6 +36,7 @@ export default function EventsPage() {
   const [events, setEvents] = useState<EventWithFornecedores[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isExporting, setIsExporting] = useState(false)
+  const [exportType, setExportType] = useState<"csv" | "excel" | null>(null)
   const [viewMode, setViewMode] = useState<"grid" | "table">("grid")
   const [eventToDelete, setEventToDelete] = useState<string | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
@@ -43,7 +46,7 @@ export default function EventsPage() {
     endDate: "",
     search: "",
     fornecedor: "",
-    pagamento: "", // Adicionado campo pagamento
+    pagamento: "",
   })
 
   useEffect(() => {
@@ -202,23 +205,34 @@ export default function EventsPage() {
     fetchEvents()
   }, [user, toast, filters])
 
-  const handleExportCSV = async () => {
+  const handleExport = async (type: "csv" | "excel") => {
     setIsExporting(true)
+    setExportType(type)
+
     try {
-      await exportEventsToCSV(events)
-      toast({
-        title: "Exportação concluída",
-        description: "Os eventos foram exportados com sucesso para CSV.",
-      })
+      if (type === "csv") {
+        await exportEventsToCSV(events)
+        toast({
+          title: "Exportação concluída",
+          description: "Os eventos foram exportados com sucesso para CSV.",
+        })
+      } else {
+        await exportEventsToExcel(events)
+        toast({
+          title: "Exportação concluída",
+          description: "Os eventos foram exportados com sucesso para Excel.",
+        })
+      }
     } catch (error) {
-      console.error("Erro ao exportar eventos:", error)
+      console.error(`Erro ao exportar eventos para ${type}:`, error)
       toast({
         title: "Erro na exportação",
-        description: "Não foi possível exportar os eventos para CSV.",
+        description: `Não foi possível exportar os eventos para ${type === "csv" ? "CSV" : "Excel"}.`,
         variant: "destructive",
       })
     } finally {
       setIsExporting(false)
+      setExportType(null)
     }
   }
 
@@ -307,24 +321,38 @@ export default function EventsPage() {
                   <Plus className="mr-2 h-4 w-4" />
                   Novo Evento
                 </Button>
-                <Button
-                  onClick={handleExportCSV}
-                  variant="outline"
-                  className="border-zinc-700 text-white"
-                  disabled={isExporting || events.length === 0}
-                >
-                  {isExporting ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Exportando...
-                    </>
-                  ) : (
-                    <>
+
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className="border-zinc-700 text-white"
+                      disabled={isExporting || events.length === 0}
+                    >
+                      {isExporting ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Exportando {exportType === "csv" ? "CSV" : "Excel"}...
+                        </>
+                      ) : (
+                        <>
+                          <Download className="mr-2 h-4 w-4" />
+                          Exportar
+                        </>
+                      )}
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent>
+                    <DropdownMenuItem onClick={() => handleExport("csv")}>
                       <Download className="mr-2 h-4 w-4" />
                       Exportar CSV
-                    </>
-                  )}
-                </Button>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => handleExport("excel")}>
+                      <FileSpreadsheet className="mr-2 h-4 w-4" />
+                      Exportar Excel
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </>
             )}
           </div>
