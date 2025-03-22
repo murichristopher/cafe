@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, use } from "react"
 import { useRouter } from "next/navigation"
 import { motion } from "framer-motion"
 import { Calendar, Clock, Loader2, MapPin, ArrowLeft, Users, Receipt, CreditCard } from "lucide-react"
@@ -22,6 +22,10 @@ import { ImageUploadSimple } from "@/components/ui/image-upload-simple"
 import type { Option } from "@/components/ui/multi-select"
 
 export default function EditEventPage({ params }: { params: { id: string } }) {
+  // Unwrap the params object using React.use()
+  const unwrappedParams = use(Promise.resolve(params))
+  const eventId = unwrappedParams.id
+
   const { user } = useAuth()
   const router = useRouter()
   const { toast } = useToast()
@@ -56,7 +60,7 @@ export default function EditEventPage({ params }: { params: { id: string } }) {
         const { data, error } = await supabase
           .from("events")
           .select("*, fornecedor:fornecedor_id(id, name, email)")
-          .eq("id", params.id)
+          .eq("id", eventId)
           .single()
 
         if (error) {
@@ -103,7 +107,7 @@ export default function EditEventPage({ params }: { params: { id: string } }) {
         const { data: eventFornecedores, error: fornecedoresError } = await supabase
           .from("event_fornecedores")
           .select("fornecedor_id") // Corrigido: user_id -> fornecedor_id
-          .eq("event_id", params.id)
+          .eq("event_id", eventId)
 
         if (fornecedoresError) {
           console.error("Erro ao buscar fornecedores do evento:", fornecedoresError)
@@ -124,7 +128,7 @@ export default function EditEventPage({ params }: { params: { id: string } }) {
     }
 
     fetchEvent()
-  }, [params.id, toast])
+  }, [eventId, toast])
 
   // Fetch fornecedores
   useEffect(() => {
@@ -223,7 +227,7 @@ export default function EditEventPage({ params }: { params: { id: string } }) {
       }
 
       // Atualizar o evento
-      const { error } = await supabase.from("events").update(eventData).eq("id", params.id)
+      const { error } = await supabase.from("events").update(eventData).eq("id", eventId)
 
       if (error) {
         throw error
@@ -231,7 +235,7 @@ export default function EditEventPage({ params }: { params: { id: string } }) {
 
       // Atualizar os fornecedores do evento
       // 1. Remover todos os fornecedores existentes
-      const { error: deleteError } = await supabase.from("event_fornecedores").delete().eq("event_id", params.id)
+      const { error: deleteError } = await supabase.from("event_fornecedores").delete().eq("event_id", eventId)
 
       if (deleteError) {
         console.error("Erro ao remover fornecedores existentes:", deleteError)
@@ -241,19 +245,15 @@ export default function EditEventPage({ params }: { params: { id: string } }) {
       // 2. Adicionar os fornecedores selecionados
       if (selectedFornecedores.length > 0) {
         const fornecedoresData = selectedFornecedores.map((fornecedorId) => ({
-          event_id: params.id,
+          event_id: eventId,
           fornecedor_id: fornecedorId, // Corrigido: user_id -> fornecedor_id
         }))
 
         const { error: insertError } = await supabase.from("event_fornecedores").insert(fornecedoresData)
 
         if (insertError) {
-          console.error("Erro ao adicionar fornecedores:", insertError)
-          toast({
-            title: "Aviso",
-            description: "Evento atualizado, mas houve um erro ao adicionar fornecedores.",
-            variant: "destructive",
-          })
+          console.error("Erro ao adicionar novos fornecedores:", insertError)
+          throw insertError
         }
       }
 
@@ -263,7 +263,7 @@ export default function EditEventPage({ params }: { params: { id: string } }) {
       })
 
       // Redirecionar para a página de detalhes do evento
-      router.push(`/dashboard/events/${params.id}`)
+      router.push(`/dashboard/events/${eventId}`)
     } catch (error: any) {
       console.error("Erro ao atualizar evento:", error)
       toast({
@@ -304,7 +304,7 @@ export default function EditEventPage({ params }: { params: { id: string } }) {
   return (
     <div className="mx-auto max-w-3xl">
       <div className="mb-4">
-        <Link href={`/dashboard/events/${params.id}`} className="flex items-center text-yellow-400 hover:underline">
+        <Link href={`/dashboard/events/${eventId}`} className="flex items-center text-yellow-400 hover:underline">
           <ArrowLeft className="mr-2 h-4 w-4" />
           Voltar para detalhes do evento
         </Link>
@@ -592,7 +592,7 @@ export default function EditEventPage({ params }: { params: { id: string } }) {
           </CardContent>
 
           <CardFooter className="flex justify-end gap-4">
-            <Link href={`/dashboard/events/${params.id}`}>
+            <Link href={`/dashboard/events/${eventId}`}>
               <Button variant="outline" className="border-zinc-700 text-white">
                 Cancelar
               </Button>

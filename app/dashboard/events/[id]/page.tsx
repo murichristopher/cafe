@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, use } from "react"
 import { useRouter } from "next/navigation"
 import { motion } from "framer-motion"
 import {
@@ -34,6 +34,10 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 
 export default function EventDetailsPage({ params }: { params: { id: string } }) {
+  // Unwrap the params object using React.use()
+  const unwrappedParams = use(Promise.resolve(params))
+  const eventId = unwrappedParams.id
+
   const { user } = useAuth()
   const { toast } = useToast()
   const router = useRouter()
@@ -51,7 +55,7 @@ export default function EventDetailsPage({ params }: { params: { id: string } })
 
     try {
       // Buscar o evento
-      const { data, error } = await supabase.from("events").select("*").eq("id", params.id).single()
+      const { data, error } = await supabase.from("events").select("*").eq("id", eventId).single()
 
       if (error) {
         console.error("Error fetching event:", error)
@@ -63,7 +67,7 @@ export default function EventDetailsPage({ params }: { params: { id: string } })
       const { data: eventFornecedores, error: fornecedoresError } = await supabase
         .from("event_fornecedores")
         .select("fornecedor_id")
-        .eq("event_id", params.id)
+        .eq("event_id", eventId)
 
       if (fornecedoresError) {
         console.error("Erro ao buscar fornecedores do evento:", fornecedoresError)
@@ -111,7 +115,7 @@ export default function EventDetailsPage({ params }: { params: { id: string } })
 
   useEffect(() => {
     fetchEvent()
-  }, [params.id])
+  }, [eventId])
 
   const deleteEvent = async () => {
     if (!event) return
