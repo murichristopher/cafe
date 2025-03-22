@@ -22,7 +22,7 @@ type NaiveAuthContextType = {
 // Export the context
 export const NaiveAuthContext = createContext<NaiveAuthContextType | undefined>(undefined)
 
-export function AuthProvider({ children }: { children: React.ReactNode }) {
+export function NaiveAuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
 
@@ -182,7 +182,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 }
 
 // Export the hook
-export function useAuth() {
+export function useNaive() {
   const context = useContext(NaiveAuthContext)
 
   if (context === undefined) {
