@@ -15,23 +15,23 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const { user, loading } = useAuth()
   const router = useRouter()
 
-  // Efeito simples para redirecionar se não estiver logado
-  useEffect(() => {
-    // Só verificamos após o carregamento inicial para evitar flashes
-    if (!loading && !user) {
-      router.push("/login")
-    }
-  }, [user, loading, router])
+  // // Efeito simples para redirecionar se não estiver logado
+  // useEffect(() => {
+  //   // Só verificamos após o carregamento inicial para evitar flashes
+  //   if (!loading && !user) {
+  //     router.push("/login")
+  //   }
+  // }, [user, loading, router])
 
-  // Mostrar loading enquanto verifica autenticação
-  if (loading) {
-    return <LoadingSpinner message="Verificando autenticação..." />
-  }
+  // // Mostrar loading enquanto verifica autenticação
+  // if (loading) {
+  //   return <LoadingSpinner message="Verificando autenticação..." />
+  // }
 
-  // Se não estiver logado, não renderiza nada (o redirecionamento acontecerá pelo useEffect)
-  if (!user) {
-    return null
-  }
+  // // // Se não estiver logado, não renderiza nada (o redirecionamento acontecerá pelo useEffect)
+  // if (!user) {
+  //   router.push("/login")
+  // }
 
   // Se estiver logado, renderiza o layout normalmente
   return (
