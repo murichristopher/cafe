@@ -22,6 +22,7 @@ import { cn } from "@/lib/utils"
 import { useToast } from "@/hooks/use-toast"
 import { SimpleImageUpload } from "@/components/simple-image-upload"
 import { MultiSelect } from "@/components/ui/multi-select"
+import { notifyFornecedorChanges } from "@/lib/fornecedor-notification"
 
 // Schema de validação para o formulário
 const eventFormSchema = z.object({
@@ -71,6 +72,7 @@ export function EventForm({ event, isEditing = false }: EventFormProps) {
   const [isLoading, setIsLoading] = useState(false)
   const [eventImage, setEventImage] = useState<string | null>(event?.event_image || null)
   const [selectedFornecedores, setSelectedFornecedores] = useState<string[]>([])
+  const [previousFornecedores, setPreviousFornecedores] = useState<string[]>([])
 
   // Inicializar o formulário com valores padrão ou valores do evento existente
   const form = useForm<EventFormValues>({
@@ -120,6 +122,7 @@ export function EventForm({ event, isEditing = false }: EventFormProps) {
 
           const fornecedoresIds = eventFornecedores.map((ef) => ef.fornecedor_id)
           setSelectedFornecedores(fornecedoresIds)
+          setPreviousFornecedores(fornecedoresIds) // Armazenar os fornecedores originais
           form.setValue("fornecedores", fornecedoresIds)
         }
       } catch (error) {
@@ -205,6 +208,37 @@ export function EventForm({ event, isEditing = false }: EventFormProps) {
 
         if (relationshipError) {
           console.error("Error creating fornecedor relationships:", relationshipError)
+        }
+
+        // Se estiver editando e houver novos fornecedores, enviar notificação
+        if (isEditing && event && values.fornecedores) {
+          // Verificar se há novos fornecedores
+          const hasNewFornecedores = values.fornecedores.some((id) => !previousFornecedores.includes(id))
+
+          if (hasNewFornecedores) {
+            // Formatar a data para a notificação
+            const formattedDate = format(dateTime, "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })
+
+            // Obter a URL base
+            const baseUrl = window.location.origin
+
+            // Enviar notificação sobre os novos fornecedores
+            const notificationResult = await notifyFornecedorChanges(
+              eventId,
+              values.title,
+              values.fornecedores,
+              previousFornecedores,
+              formattedDate,
+              values.location,
+              baseUrl,
+            )
+
+            if (notificationResult.success) {
+              console.log("Notificação enviada com sucesso:", notificationResult.message)
+            } else {
+              console.error("Erro ao enviar notificação:", notificationResult.message)
+            }
+          }
         }
       }
 

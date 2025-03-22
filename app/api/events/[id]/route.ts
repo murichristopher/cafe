@@ -10,9 +10,9 @@ export async function GET(request: Request, { params }: { params: { id: string }
     const { data, error } = await supabase
       .from("events")
       .select(`
-        id, 
-        title, 
-        description, 
+        id,
+        title,
+        description,
         date,
         event_fornecedores(user_id)
       `)
@@ -30,7 +30,14 @@ export async function GET(request: Request, { params }: { params: { id: string }
 
 export async function PUT(request: Request, { params }: { params: { id: string } }) {
   try {
-    const { title, description, date, fornecedores } = await request.json()
+    const payload = await request.json()
+
+    // Se houver um campo fornecedor_id no payload, remova-o
+    if (payload.fornecedor_id !== undefined) {
+      delete payload.fornecedor_id
+    }
+
+    const { title, description, date, fornecedores } = payload
 
     // Atualizar o evento
     const { error: eventError } = await supabase

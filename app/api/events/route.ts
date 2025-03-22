@@ -9,8 +9,13 @@ const supabase = createClient(supabaseUrl, supabaseAnonKey)
 export async function POST(request: Request) {
   console.log("[API] POST /api/events - Starting event creation")
   try {
-    const { title, description, date, fornecedores } = await request.json()
+    const { title, description, date, fornecedores, ...payload } = await request.json()
     console.log(`[API] Creating event: "${title}" with ${fornecedores?.length || 0} fornecedores`)
+
+    // Se houver um campo fornecedor_id no payload, remova-o
+    if (payload.fornecedor_id !== undefined) {
+      delete payload.fornecedor_id
+    }
 
     // Criar o evento
     const { data: eventData, error: eventError } = await supabase
