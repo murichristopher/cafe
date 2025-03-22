@@ -109,13 +109,13 @@ ${eventUrl}`
         console.log(`[FORNECEDOR NOTIFICATION] Enviando mensagem WhatsApp para ${fornecedor.name} (${formattedPhone})`)
 
         try {
-          // const result = await sendWhatsAppMessage(formattedPhone, message)
-          // console.log(`[FORNECEDOR NOTIFICATION] Resultado do envio para ${fornecedor.name}:`, result)
+          const result = await sendWhatsAppMessage(formattedPhone, message)
+          console.log(`[FORNECEDOR NOTIFICATION] Resultado do envio para ${fornecedor.name}:`, result)
 
           return {
             fornecedorId: fornecedor.id,
-            success: true,
-            message: "ok",
+            success: result.success,
+            message: result.message,
           }
         } catch (error) {
           console.error(`[FORNECEDOR NOTIFICATION] Erro ao enviar mensagem WhatsApp para ${fornecedor.name}:`, error)
