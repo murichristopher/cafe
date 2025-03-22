@@ -43,6 +43,7 @@ export default function EventsPage() {
     endDate: "",
     search: "",
     fornecedor: "",
+    pagamento: "", // Adicionado campo pagamento
   })
 
   useEffect(() => {
@@ -55,6 +56,10 @@ export default function EventsPage() {
         // Aplicar filtros
         if (filters.status) {
           query = query.eq("status", filters.status)
+        }
+
+        if (filters.pagamento) {
+          query = query.eq("pagamento", filters.pagamento)
         }
 
         if (filters.startDate) {

@@ -22,6 +22,7 @@ interface EventFiltersProps {
     endDate: string
     search: string
     fornecedor?: string
+    pagamento?: string // Adicionado campo pagamento
   }
   setFilters: React.Dispatch<
     React.SetStateAction<{
@@ -30,6 +31,7 @@ interface EventFiltersProps {
       endDate: string
       search: string
       fornecedor?: string
+      pagamento?: string // Adicionado campo pagamento
     }>
   >
   showFornecedorFilter?: boolean
@@ -87,6 +89,13 @@ export function EventFilters({ filters, setFilters, showFornecedorFilter = false
     }))
   }
 
+  const handlePagamentoChange = (value: string) => {
+    setFilters((prev) => ({
+      ...prev,
+      pagamento: value === "todos" ? "" : value,
+    }))
+  }
+
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFilters((prev) => ({
       ...prev,
@@ -103,6 +112,7 @@ export function EventFilters({ filters, setFilters, showFornecedorFilter = false
       endDate: "",
       search: "",
       fornecedor: "",
+      pagamento: "", // Adicionado reset do campo pagamento
     })
   }
 
@@ -185,7 +195,24 @@ export function EventFilters({ filters, setFilters, showFornecedorFilter = false
             </Select>
           )}
 
-          {(filters.status || filters.startDate || filters.endDate || filters.search || filters.fornecedor) && (
+          <Select value={filters.pagamento || "todos"} onValueChange={handlePagamentoChange}>
+            <SelectTrigger className="w-[180px]">
+              <SelectValue placeholder="Pagamento" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="todos">Todos</SelectItem>
+              <SelectItem value="pendente">Pendente</SelectItem>
+              <SelectItem value="aguardando">Aguardando</SelectItem>
+              <SelectItem value="pago">Pago</SelectItem>
+            </SelectContent>
+          </Select>
+
+          {(filters.status ||
+            filters.startDate ||
+            filters.endDate ||
+            filters.search ||
+            filters.fornecedor ||
+            filters.pagamento) && (
             <Button variant="ghost" onClick={handleClearFilters} className="h-10 px-3">
               <X className="h-4 w-4 mr-2" />
               Limpar
