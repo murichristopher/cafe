@@ -1,0 +1,31 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+✅ Instruction:
+
+“Always write commit messages following the Conventional Commits specification, and ensure that each commit message (including type, scope, and description) does not exceed 100 characters in total.”
+
+⸻
+
+📌 Example Prompt Summary:
+
+If you’re using this in a system (like a custom CLI, LLM workflow, or commit hook), here’s a more system-friendly version:
+
+Use Conventional Commits format (e.g., feat, fix, chore, etc.), and limit commit message to 100 characters max, including type, optional scope, and description.
+
+
+
+⸻
+
+💡 Optional reinforcement:
+
+If you want to be extra specific, you can include examples:
+
+Format: <type>(<scope>): <description> — max 100 chars
+
+Examples:
+- feat(auth): add login with Google
+- fix(user): prevent crash when email is missing
+
