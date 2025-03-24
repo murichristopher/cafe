@@ -1,15 +1,15 @@
 "use client"
 
 import type React from "react"
+
 import { createContext, useContext, useEffect, useState } from "react"
 import { supabase } from "@/lib/supabase"
 import type { User } from "@/types"
 
-type NaiveAuthContextType = {
+type AuthContextType = {
   user: User | null
   loading: boolean
-  signIn: (email: string, password: string) => Promise<{ success: boolean; error: any }>
-  signOut: () => Promise<void>
+  signIn: (email: string, password: string) => Promise<{ success: boolean; error: any; needsPhoneNumber?: boolean }>
   signUp: (
     email: string,
     password: string,
@@ -17,16 +17,20 @@ type NaiveAuthContextType = {
     role: "admin" | "fornecedor",
     phoneNumber?: string,
   ) => Promise<{ success: boolean; error: any }>
+  signOut: () => Promise<void>
+  needsPhoneNumber: boolean
+  updatePhoneNumberState: (phoneNumber: string) => Promise<void> // Adicione esta linha
 }
 
 // Export the context
-export const NaiveAuthContext = createContext<NaiveAuthContextType | undefined>(undefined)
+export const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
   const [needsPhoneNumber, setNeedsPhoneNumber] = useState(false)
 
+  // Função para buscar e atualizar os dados do usuário
   const updateUserData = async () => {
     try {
       const {
@@ -94,65 +98,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
-  // Load user from localStorage on mount
+  // Verificar autenticação ao carregar
   useEffect(() => {
-    const loadUserFromStorage = () => {
-      try {
-        const storedUser = localStorage.getItem('cachedUser')
-        if (storedUser) {
-          setUser(JSON.parse(storedUser))
-        }
-      } catch (error) {
-        console.error("Error loading user from localStorage:", error)
-      } finally {
-        setLoading(false)
-      }
-    }
+    updateUserData()
 
-    loadUserFromStorage()
+    // Configurar listener para mudanças de autenticação
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(async () => {
+      await updateUserData()
+    })
+
+    return () => {
+      subscription.unsubscribe()
+    }
   }, [])
 
+  // Função de login simplificada - SEM REDIRECIONAMENTO
   const signIn = async (email: string, password: string) => {
-    setLoading(true)
-
-    // Fetch user data from tzhe users table
-
-    const admins = [
-      {
-        id: "e03d9779-a5d5-47ea-bdda-43c54a4cbc31",
-        email: "admin@gmail.com",
-        name: "admin",
-        role: "admin",
-        phone_number: null
-      }
-    ]
-
-
-    let userToCache: User
-
-    const user = admins.find((admin) => admin.email === email)
-
-    if (!user) {
-      return signInFornecedor(email, password)
-    }
-
-    userToCache = {
-      id: user.id,
-      email: user.email || "",
-      name: user.email?.split("@")[0] || "User",
-      role: user.role as "admin" | "fornecedor",
-      phone_number: user.phone_number || "",
-    }
-
-
-    // Cache user in state and localStorage
-    setUser(userToCache)
-    localStorage.setItem('cachedUser', JSON.stringify(userToCache))
-
-    return { success: true, error: null }
-  }
-
-  const signInFornecedor = async (email: string, password: string) => {
     try {
       setLoading(true)
 
@@ -182,18 +145,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
-  const signOut = async () => {
-    try {
-      setLoading(true)
-
-      // Clear cached user
-      localStorage.removeItem('cachedUser')
-      setUser(null)
-    } finally {
-      setLoading(false)
-    }
-  }
-
+  // Função de registro simplificada - SEM REDIRECIONAMENTO
   const signUp = async (
     email: string,
     password: string,
@@ -204,7 +156,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       setLoading(true)
 
-      // Register user in Auth
+      // Registrar usuário no Auth
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
@@ -218,11 +170,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       })
 
       if (error) {
-        console.error("Registration error:", error)
+        console.error("Erro de registro:", error)
         return { success: false, error }
       }
 
-      // Insert into users table
+      // Inserir na tabela users
       if (data.user) {
         try {
           await supabase.from("users").insert([
@@ -235,42 +187,86 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             },
           ])
         } catch (insertErr) {
-          console.error("Error inserting user:", insertErr)
-          return { success: false, error: insertErr }
+          console.error("Erro ao inserir usuário:", insertErr)
         }
       }
 
       return { success: true, error: null }
     } catch (error) {
-      console.error("Unexpected registration error:", error)
+      console.error("Erro inesperado no registro:", error)
       return { success: false, error }
     } finally {
       setLoading(false)
     }
   }
 
+  // Atualizar a função signOut para garantir que ela limpe corretamente a sessão
+  const signOut = async () => {
+    try {
+      setLoading(true)
+      // Fazer logout no Supabase
+      const { error } = await supabase.auth.signOut()
+
+      if (error) {
+        console.error("Erro ao fazer logout:", error)
+        throw error
+      }
+
+      // Limpar o estado do usuário
+      setUser(null)
+      setNeedsPhoneNumber(false)
+
+      return { success: true, error: null }
+    } catch (error) {
+      console.error("Erro ao fazer logout:", error)
+      return { success: false, error }
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Função para atualizar o estado após salvar o número de telefone
+  const updatePhoneNumberState = async (phoneNumber: string) => {
+    if (user) {
+      // Atualizar o estado do usuário com o novo número de telefone
+      setUser({
+        ...user,
+        phone_number: phoneNumber,
+      })
+
+      // Atualizar a flag needsPhoneNumber
+      setNeedsPhoneNumber(false)
+
+      // Forçar uma atualização completa dos dados do usuário
+      await updateUserData()
+    }
+  }
+
   return (
-    <NaiveAuthContext.Provider
+    <AuthContext.Provider
       value={{
         user,
         loading,
         signIn,
-        signOut,
         signUp,
+        signOut,
+        needsPhoneNumber,
+        updatePhoneNumberState, // Adicione esta linha
       }}
     >
       {children}
-    </NaiveAuthContext.Provider>
+    </AuthContext.Provider>
   )
 }
 
 // Export the hook
 export function useAuth() {
-  const context = useContext(NaiveAuthContext)
+  const context = useContext(AuthContext)
 
   if (context === undefined) {
-    throw new Error("useNaive must be used within a NaiveAuthProvider")
+    throw new Error("useAuth must be used within an AuthProvider")
   }
 
   return context
 }
+
