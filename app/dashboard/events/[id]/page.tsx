@@ -17,6 +17,7 @@ import {
   ArrowLeft,
   Loader2,
   Pencil,
+  DollarSign,
 } from "lucide-react"
 import { useAuth } from "@/contexts/auth-context"
 import { supabase } from "@/lib/supabase"
@@ -571,6 +572,14 @@ function EventDetails({
           <Calendar className="mr-2 h-5 w-5 text-yellow-500" />
           {format(new Date(event.date), "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
         </div>
+        
+        {event.data_termino && (
+          <div className="flex items-center text-muted-foreground">
+            <Calendar className="mr-2 h-5 w-5 text-yellow-500" />
+            Data de Término: {format(new Date(event.data_termino), "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
+          </div>
+        )}
+        
         <div className="flex items-center text-muted-foreground">
           <Clock className="mr-2 h-5 w-5 text-yellow-500" />
           {format(new Date(event.date), "HH:mm", { locale: ptBR })}
@@ -584,6 +593,20 @@ function EventDetails({
           <div className="flex items-center text-muted-foreground">
             <Users className="mr-2 h-5 w-5 text-yellow-500" />
             Número de Pessoas: {event.pax}
+          </div>
+        )}
+
+        {event.valor !== null && event.valor !== undefined && (
+          <div className="flex items-center text-muted-foreground">
+            <DollarSign className="mr-2 h-5 w-5 text-yellow-500" />
+            Valor: R$ {event.valor.toFixed(2)}
+          </div>
+        )}
+        
+        {event.valor_de_custo !== null && event.valor_de_custo !== undefined && (
+          <div className="flex items-center text-muted-foreground">
+            <DollarSign className="mr-2 h-5 w-5 text-yellow-500" />
+            Valor de Custo: R$ {event.valor_de_custo.toFixed(2)}
           </div>
         )}
 
@@ -622,13 +645,6 @@ function EventDetails({
         {/* Campos financeiros - visíveis apenas para administradores */}
         {!isFornecedor && (
           <>
-            {event.valor !== null && event.valor !== undefined && (
-              <div className="flex items-center text-muted-foreground">
-                <CreditCard className="mr-2 h-5 w-5 text-yellow-500" />
-                Valor: R$ {event.valor.toFixed(2).replace(".", ",")}
-              </div>
-            )}
-
             {event.nota_fiscal && (
               <div className="flex items-center text-muted-foreground">
                 <Receipt className="mr-2 h-5 w-5 text-yellow-500" />

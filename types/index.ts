@@ -11,12 +11,14 @@ export type Event = {
   title: string
   description: string
   date: string
+  data_termino?: string | null
   location: string
   admin_id: string
   fornecedor_id: string | null
   status: "pendente" | "confirmado" | "cancelado" | "aguardando_aprovacao" | "concluido"
   created_at: string
   valor?: number | null
+  valor_de_custo?: number | null
   nota_fiscal?: string | null
   pagamento?: "pendente" | "realizado" | "cancelado" | null
   horario_fim?: string | null

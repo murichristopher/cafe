@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, use } from "react"
 import { useRouter } from "next/navigation"
 import { motion } from "framer-motion"
 import { Calendar, Clock, Loader2, MapPin, ArrowLeft, Users, Receipt, CreditCard } from "lucide-react"
@@ -24,6 +24,10 @@ import { notifyFornecedorChanges } from "@/lib/fornecedor-notification"
 import { ptBR } from "date-fns/locale"
 
 export default function EditEventPage({ params }: { params: { id: string } }) {
+  // Unwrap the params object using React.use()
+  const unwrappedParams = use(Promise.resolve(params))
+  const eventId = unwrappedParams.id
+
   const { user } = useAuth()
   const router = useRouter()
   const { toast } = useToast()
@@ -40,11 +44,13 @@ export default function EditEventPage({ params }: { params: { id: string } }) {
   const [title, setTitle] = useState("")
   const [description, setDescription] = useState("")
   const [date, setDate] = useState("")
+  const [dataTermino, setDataTermino] = useState("")
   const [startTime, setStartTime] = useState("")
   const [endTime, setEndTime] = useState("")
   const [location, setLocation] = useState("")
   const [status, setStatus] = useState("pendente")
   const [valor, setValor] = useState("")
+  const [valorDeCusto, setValorDeCusto] = useState("")
   const [notaFiscal, setNotaFiscal] = useState("")
   const [pagamento, setPagamento] = useState("pendente")
   const [diaPagamento, setDiaPagamento] = useState("")
@@ -59,7 +65,7 @@ export default function EditEventPage({ params }: { params: { id: string } }) {
         const { data, error } = await supabase
           .from("events")
           .select("*, fornecedor:fornecedor_id(id, name, email)")
-          .eq("id", params.id)
+          .eq("id", eventId)
           .single()
 
         if (error) {
@@ -80,6 +86,13 @@ export default function EditEventPage({ params }: { params: { id: string } }) {
         const formattedDate = format(eventDate, "yyyy-MM-dd")
         const formattedTime = format(eventDate, "HH:mm")
 
+        // Format data_termino if it exists
+        let formattedDataTermino = ""
+        if (eventData.data_termino) {
+          const dataTerminoDate = new Date(eventData.data_termino)
+          formattedDataTermino = format(dataTerminoDate, "yyyy-MM-dd")
+        }
+
         // Format payment date correctly by using the local timezone
         let formattedPaymentDate = ""
         if (eventData.dia_pagamento) {
@@ -91,11 +104,13 @@ export default function EditEventPage({ params }: { params: { id: string } }) {
         setTitle(eventData.title)
         setDescription(eventData.description)
         setDate(formattedDate)
+        setDataTermino(formattedDataTermino)
         setStartTime(formattedTime)
         setEndTime(eventData.horario_fim || "")
         setLocation(eventData.location)
         setStatus(eventData.status)
         setValor(eventData.valor ? eventData.valor.toString() : "")
+        setValorDeCusto(eventData.valor_de_custo ? eventData.valor_de_custo.toString() : "")
         setNotaFiscal(eventData.nota_fiscal || "")
         setPagamento(eventData.pagamento || "pendente")
         setDiaPagamento(formattedPaymentDate)
@@ -106,7 +121,7 @@ export default function EditEventPage({ params }: { params: { id: string } }) {
         const { data: eventFornecedores, error: fornecedoresError } = await supabase
           .from("event_fornecedores")
           .select("fornecedor_id")
-          .eq("event_id", params.id)
+          .eq("event_id", eventId)
 
         if (fornecedoresError) {
           console.error("Erro ao buscar fornecedores do evento:", fornecedoresError)
@@ -128,7 +143,7 @@ export default function EditEventPage({ params }: { params: { id: string } }) {
     }
 
     fetchEvent()
-  }, [params.id, toast])
+  }, [eventId, toast])
 
   // Fetch fornecedores
   useEffect(() => {
@@ -201,6 +216,14 @@ export default function EditEventPage({ params }: { params: { id: string } }) {
       }
 
       const eventDate = new Date(`${date}T${startTime}`)
+      
+      // Formatar data de término se existir
+      let formattedDataTermino = null
+      if (dataTermino) {
+        // Se temos a data de término, usar o horário de fim ou meio-dia como padrão
+        const terminoTime = endTime || "12:00"
+        formattedDataTermino = new Date(`${dataTermino}T${terminoTime}`).toISOString()
+      }
 
       // Corrigir o problema da data de pagamento usando o fuso horário local
       let formattedDiaPagamento = null
@@ -218,16 +241,18 @@ export default function EditEventPage({ params }: { params: { id: string } }) {
         fornecedor_id: null, // Não usamos mais este campo diretamente
         status,
         valor: valor ? Number.parseFloat(valor) : null,
+        valor_de_custo: valorDeCusto ? Number.parseFloat(valorDeCusto) : null,
         nota_fiscal: notaFiscal || null,
         pagamento,
         horario_fim: endTime || null,
         dia_pagamento: formattedDiaPagamento,
         pax: pax ? Number.parseInt(pax, 10) : null,
         event_image: eventImage || null,
+        data_termino: formattedDataTermino,
       }
 
       // Atualizar o evento
-      const { error } = await supabase.from("events").update(eventData).eq("id", params.id)
+      const { error } = await supabase.from("events").update(eventData).eq("id", eventId)
 
       if (error) {
         throw error
@@ -235,7 +260,7 @@ export default function EditEventPage({ params }: { params: { id: string } }) {
 
       // Atualizar os fornecedores do evento
       // 1. Remover todos os fornecedores existentes
-      const { error: deleteError } = await supabase.from("event_fornecedores").delete().eq("event_id", params.id)
+      const { error: deleteError } = await supabase.from("event_fornecedores").delete().eq("event_id", eventId)
 
       if (deleteError) {
         console.error("Erro ao remover fornecedores existentes:", deleteError)
@@ -245,7 +270,7 @@ export default function EditEventPage({ params }: { params: { id: string } }) {
       // 2. Adicionar os fornecedores selecionados
       if (selectedFornecedores.length > 0) {
         const fornecedoresData = selectedFornecedores.map((fornecedorId) => ({
-          event_id: params.id,
+          event_id: eventId,
           fornecedor_id: fornecedorId,
         }))
 
@@ -272,7 +297,7 @@ export default function EditEventPage({ params }: { params: { id: string } }) {
 
           // Enviar notificação sobre os novos fornecedores
           const notificationResult = await notifyFornecedorChanges(
-            params.id,
+            eventId,
             title,
             selectedFornecedores,
             previousFornecedores,
@@ -295,7 +320,7 @@ export default function EditEventPage({ params }: { params: { id: string } }) {
       })
 
       // Redirecionar para a página de detalhes do evento
-      router.push(`/dashboard/events/${params.id}`)
+      router.push(`/dashboard/events/${eventId}`)
     } catch (error: any) {
       console.error("Erro ao atualizar evento:", error)
       toast({
@@ -335,7 +360,7 @@ export default function EditEventPage({ params }: { params: { id: string } }) {
   return (
     <div className="mx-auto max-w-3xl">
       <div className="mb-4">
-        <Link href={`/dashboard/events/${params.id}`} className="flex items-center text-yellow-400 hover:underline">
+        <Link href={`/dashboard/events/${eventId}`} className="flex items-center text-yellow-400 hover:underline">
           <ArrowLeft className="mr-2 h-4 w-4" />
           Voltar para detalhes do evento
         </Link>
@@ -407,6 +432,24 @@ export default function EditEventPage({ params }: { params: { id: string } }) {
                     value={date}
                     onChange={(e) => setDate(e.target.value)}
                     required
+                    disabled={isLoading}
+                  />
+                </div>
+              </div>
+
+              {/* Data de Término */}
+              <div className="space-y-2">
+                <Label htmlFor="dataTermino" className="text-sm font-medium">
+                  Data de Término
+                </Label>
+                <div className="relative">
+                  <Calendar className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    id="dataTermino"
+                    type="date"
+                    className="pl-10 w-full focus:ring-offset-2"
+                    value={dataTermino}
+                    onChange={(e) => setDataTermino(e.target.value)}
                     disabled={isLoading}
                   />
                 </div>
@@ -566,6 +609,26 @@ export default function EditEventPage({ params }: { params: { id: string } }) {
                 </div>
               </div>
 
+              {/* Valor de Custo */}
+              <div className="space-y-2">
+                <Label htmlFor="valorDeCusto" className="text-sm font-medium">
+                  Valor de Custo (R$)
+                </Label>
+                <div className="relative">
+                  <CreditCard className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    id="valorDeCusto"
+                    type="number"
+                    step="0.01"
+                    placeholder="0,00"
+                    className="pl-10 w-full focus:ring-offset-2"
+                    value={valorDeCusto}
+                    onChange={(e) => setValorDeCusto(e.target.value)}
+                    disabled={isLoading}
+                  />
+                </div>
+              </div>
+
               {/* Status */}
               <div className="space-y-2">
                 <Label htmlFor="status" className="text-sm font-medium">
@@ -623,7 +686,7 @@ export default function EditEventPage({ params }: { params: { id: string } }) {
           </CardContent>
 
           <CardFooter className="flex justify-end gap-4">
-            <Link href={`/dashboard/events/${params.id}`}>
+            <Link href={`/dashboard/events/${eventId}`}>
               <Button variant="outline" className="border-zinc-700 text-white">
                 Cancelar
               </Button>

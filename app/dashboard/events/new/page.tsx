@@ -42,11 +42,13 @@ export default function NewEventPage() {
   const [title, setTitle] = useState("")
   const [description, setDescription] = useState("")
   const [date, setDate] = useState("")
+  const [dataTermino, setDataTermino] = useState("")
   const [startTime, setStartTime] = useState("")
   const [endTime, setEndTime] = useState("")
   const [location, setLocation] = useState("")
   const [status, setStatus] = useState("pendente")
   const [valor, setValor] = useState("")
+  const [valorDeCusto, setValorDeCusto] = useState("")
   const [notaFiscal, setNotaFiscal] = useState("")
   const [pagamento, setPagamento] = useState("pendente")
   const [diaPagamento, setDiaPagamento] = useState("")
@@ -114,6 +116,14 @@ export default function NewEventPage() {
       }
 
       const eventDate = new Date(`${date}T${startTime}`)
+      
+      // Formatar data de término se existir
+      let formattedDataTermino = null
+      if (dataTermino) {
+        // Se temos a data de término, usar o horário de fim ou meio-dia como padrão
+        const terminoTime = endTime || "12:00"
+        formattedDataTermino = new Date(`${dataTermino}T${terminoTime}`).toISOString()
+      }
 
       // Corrigir o problema da data de pagamento usando o fuso horário local
       let formattedDiaPagamento = null
@@ -132,12 +142,14 @@ export default function NewEventPage() {
         fornecedor_id: null, // Não usamos mais este campo diretamente
         status,
         valor: valor ? Number.parseFloat(valor) : null,
+        valor_de_custo: valorDeCusto ? Number.parseFloat(valorDeCusto) : null,
         nota_fiscal: notaFiscal || null,
         pagamento,
         horario_fim: endTime || null,
         dia_pagamento: formattedDiaPagamento,
         pax: pax ? Number.parseInt(pax, 10) : null,
         event_image: eventImage || null,
+        data_termino: formattedDataTermino,
       }
 
       console.log("Dados do evento a serem enviados:", eventData)
@@ -352,6 +364,24 @@ export default function NewEventPage() {
                 </div>
               </div>
 
+              {/* Data de Término */}
+              <div className="space-y-2">
+                <Label htmlFor="dataTermino" className="text-sm font-medium">
+                  Data de Término
+                </Label>
+                <div className="relative">
+                  <Calendar className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    id="dataTermino"
+                    type="date"
+                    className="pl-10 w-full focus:ring-offset-2"
+                    value={dataTermino}
+                    onChange={(e) => setDataTermino(e.target.value)}
+                    disabled={isLoading}
+                  />
+                </div>
+              </div>
+
               {/* Horários */}
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
@@ -501,6 +531,26 @@ export default function NewEventPage() {
                     className="pl-10 w-full focus:ring-offset-2"
                     value={valor}
                     onChange={(e) => setValor(e.target.value)}
+                    disabled={isLoading}
+                  />
+                </div>
+              </div>
+
+              {/* Valor de Custo */}
+              <div className="space-y-2">
+                <Label htmlFor="valorDeCusto" className="text-sm font-medium">
+                  Valor de Custo (R$)
+                </Label>
+                <div className="relative">
+                  <CreditCard className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    id="valorDeCusto"
+                    type="number"
+                    step="0.01"
+                    placeholder="0,00"
+                    className="pl-10 w-full focus:ring-offset-2"
+                    value={valorDeCusto}
+                    onChange={(e) => setValorDeCusto(e.target.value)}
                     disabled={isLoading}
                   />
                 </div>
