@@ -30,60 +30,35 @@ export default function SettingsPage() {
     setIsUpdating(true)
 
     try {
-      // Check if user is admin (in JSON file)
-      if (user.role === "admin") {
-        // For admin users, update profile in the JSON file
-        const response = await fetch('/api/admin/update-profile', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            adminId: user.id,
-            name,
-            email
-          }),
-        });
+      // For all users, update via Supabase
+      const updates = {
+        name,
+        email,
+      }
 
-        const data = await response.json();
+      const { error } = await supabase.from("users").update(updates).eq("id", user.id)
 
-        if (!response.ok) {
-          throw new Error(data.message || 'Error updating admin profile');
-        }
+      if (error) {
+        toast({
+          title: "Erro ao atualizar perfil",
+          description: error.message,
+          variant: "destructive",
+        })
+        return
+      }
 
-        // Update localStorage cached user
-        const cachedUser = JSON.parse(localStorage.getItem('cachedUser') || '{}');
+      // Also update the cached user to reflect changes immediately
+      const cachedUser = JSON.parse(localStorage.getItem('cachedUser') || '{}');
+      if (cachedUser && cachedUser.id === user.id) {
         cachedUser.name = name;
         cachedUser.email = email;
         localStorage.setItem('cachedUser', JSON.stringify(cachedUser));
-
-        toast({
-          title: "Perfil atualizado",
-          description: "Suas informações foram atualizadas com sucesso.",
-        });
-      } else {
-        // For regular users, update via Supabase
-        const updates = {
-          name,
-          email,
-        }
-
-        const { error } = await supabase.from("users").update(updates).eq("id", user.id)
-
-        if (error) {
-          toast({
-            title: "Erro ao atualizar perfil",
-            description: error.message,
-            variant: "destructive",
-          })
-          return
-        }
-
-        toast({
-          title: "Perfil atualizado",
-          description: "Suas informações foram atualizadas com sucesso.",
-        })
       }
+
+      toast({
+        title: "Perfil atualizado",
+        description: "Suas informações foram atualizadas com sucesso.",
+      })
     } catch (error) {
       toast({
         title: "Erro ao atualizar perfil",
@@ -110,53 +85,27 @@ export default function SettingsPage() {
     setIsUpdating(true)
 
     try {
-      // Check if user is admin (in JSON file)
-      if (user?.role === "admin") {
-        // For admin users, update password in the JSON file
-        const response = await fetch('/api/admin/update-password', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            adminId: user.id,
-            newPassword: password
-          }),
-        });
+      // For all users, update via Supabase Auth
+      const { error } = await supabase.auth.updateUser({
+        password,
+      })
 
-        const data = await response.json();
-
-        if (!response.ok) {
-          throw new Error(data.message || 'Error updating admin password');
-        }
-
+      if (error) {
         toast({
-          title: "Senha atualizada",
-          description: "Sua senha foi atualizada com sucesso.",
-        });
-      } else {
-        // For regular users, update via Supabase Auth
-        const { error } = await supabase.auth.updateUser({
-          password,
+          title: "Erro ao atualizar senha",
+          description: error.message,
+          variant: "destructive",
         })
-
-        if (error) {
-          toast({
-            title: "Erro ao atualizar senha",
-            description: error.message,
-            variant: "destructive",
-          })
-          return
-        }
-
-        toast({
-          title: "Senha atualizada",
-          description: "Sua senha foi atualizada com sucesso.",
-        })
+        return
       }
 
       setPassword("")
       setConfirmPassword("")
+
+      toast({
+        title: "Senha atualizada",
+        description: "Sua senha foi atualizada com sucesso.",
+      })
     } catch (error) {
       toast({
         title: "Erro ao atualizar senha",

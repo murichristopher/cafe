@@ -4,7 +4,6 @@ import type React from "react"
 import { createContext, useContext, useEffect, useState } from "react"
 import { supabase } from "@/lib/supabase"
 import type { User } from "@/types"
-import admins from "@/data/admins.json"
 
 type NaiveAuthContextType = {
   user: User | null
@@ -114,36 +113,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   const signIn = async (email: string, password: string) => {
-    setLoading(true)
-
-    // Fetch user data from the users table
-
-    const user = admins.find((admin) => admin.email === email && admin.password === password)
-
-    if (!user) {
-      return signInFornecedor(email, password)
-    }
-
-    const userToCache: User = {
-      id: user.id,
-      email: user.email || "",
-      name: user.name || user.email?.split("@")[0] || "User",
-      role: user.role as "admin" | "fornecedor",
-      phone_number: user.phone_number || "",
-    }
-
-    // Cache user in state and localStorage
-    setUser(userToCache)
-    localStorage.setItem('cachedUser', JSON.stringify(userToCache))
-
-    return { success: true, error: null }
-  }
-
-  const signInFornecedor = async (email: string, password: string) => {
     try {
       setLoading(true)
 
-      const { error } = await supabase.auth.signInWithPassword({
+      // Use Supabase authentication for all users
+      const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       })
@@ -172,6 +146,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signOut = async () => {
     try {
       setLoading(true)
+
+      // Sign out from Supabase
+      await supabase.auth.signOut()
 
       // Clear cached user
       localStorage.removeItem('cachedUser')
