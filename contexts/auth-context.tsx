@@ -4,6 +4,7 @@ import type React from "react"
 import { createContext, useContext, useEffect, useState } from "react"
 import { supabase } from "@/lib/supabase"
 import type { User } from "@/types"
+import admins from "@/data/admins.json"
 
 type NaiveAuthContextType = {
   user: User | null
@@ -115,35 +116,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signIn = async (email: string, password: string) => {
     setLoading(true)
 
-    // Fetch user data from tzhe users table
+    // Fetch user data from the users table
 
-    const admins = [
-      {
-        id: "e03d9779-a5d5-47ea-bdda-43c54a4cbc31",
-        email: "admin@gmail.com",
-        name: "admin",
-        role: "admin",
-        phone_number: null
-      }
-    ]
-
-
-    let userToCache: User
-
-    const user = admins.find((admin) => admin.email === email)
+    const user = admins.find((admin) => admin.email === email && admin.password === password)
 
     if (!user) {
       return signInFornecedor(email, password)
     }
 
-    userToCache = {
+    const userToCache: User = {
       id: user.id,
       email: user.email || "",
-      name: user.email?.split("@")[0] || "User",
+      name: user.name || user.email?.split("@")[0] || "User",
       role: user.role as "admin" | "fornecedor",
       phone_number: user.phone_number || "",
     }
-
 
     // Cache user in state and localStorage
     setUser(userToCache)
