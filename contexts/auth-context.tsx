@@ -94,22 +94,51 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
-  // Load user from localStorage on mount
+  // Verificar autenticação ao carregar
   useEffect(() => {
-    const loadUserFromStorage = () => {
+    const checkAuth = async () => {
       try {
-        const storedUser = localStorage.getItem('cachedUser')
-        if (storedUser) {
-          setUser(JSON.parse(storedUser))
+        // Primeiro, verificar a sessão do Supabase
+        const { data: { session } } = await supabase.auth.getSession()
+        
+        if (!session) {
+          // Se não houver sessão, limpar o cache e o estado
+          localStorage.removeItem('cachedUser')
+          setUser(null)
+          setNeedsPhoneNumber(false)
+          setLoading(false)
+          return
         }
+
+        // Se houver sessão, buscar dados do usuário
+        await updateUserData()
       } catch (error) {
-        console.error("Error loading user from localStorage:", error)
+        console.error("Erro ao verificar autenticação:", error)
+        setUser(null)
+        setNeedsPhoneNumber(false)
       } finally {
         setLoading(false)
       }
     }
 
-    loadUserFromStorage()
+    checkAuth()
+
+    // Configurar listener para mudanças de autenticação
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(async (event) => {
+      if (event === 'SIGNED_OUT') {
+        localStorage.removeItem('cachedUser')
+        setUser(null)
+        setNeedsPhoneNumber(false)
+      } else if (event === 'SIGNED_IN') {
+        await updateUserData()
+      }
+    })
+
+    return () => {
+      subscription.unsubscribe()
+    }
   }, [])
 
   const signIn = async (email: string, password: string) => {
