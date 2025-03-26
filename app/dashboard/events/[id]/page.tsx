@@ -50,6 +50,14 @@ export default function EventDetailsPage({ params }: { params: { id: string } })
   const [error, setError] = useState<string | null>(null)
   const [fornecedores, setFornecedores] = useState<User[]>([])
 
+  // Verificar autenticação
+  useEffect(() => {
+    if (!user) {
+      router.push("/login")
+      return
+    }
+  }, [user, router])
+
   const fetchEvent = async () => {
     setIsLoading(true)
     setError(null)

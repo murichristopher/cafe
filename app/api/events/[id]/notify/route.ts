@@ -4,7 +4,7 @@ import { supabase } from "@/lib/supabase"
 
 // Get the base URL from environment variable
 const getBaseUrl = () => {
-  return process.env.NEXT_PUBLIC_APP_URL || "https://v0-cafe-psi.vercel.app"
+  return process.env.NEXT_PUBLIC_APP_URL || "https://app.elevecafe.com.br"
 }
 
 // Format time from date
@@ -20,6 +20,18 @@ const formatTimeFromDate = (dateString: string | null): string => {
     return `${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`
   } catch (error) {
     console.error("Error formatting time from date:", error)
+    return ""
+  }
+}
+
+// Format time string to HH:mm
+const formatTimeString = (timeString: string | null): string => {
+  if (!timeString) return ""
+  try {
+    const [hours, minutes] = timeString.split(":")
+    return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`
+  } catch (error) {
+    console.error("Error formatting time string:", error)
     return ""
   }
 }
@@ -57,7 +69,7 @@ export async function POST(request: Request, { params }: { params: { id: string 
     const startTime = formatTimeFromDate(eventData.date)
 
     // Extract end time and PAX fields - check all possible field names
-    const endTime = eventData.horario_fim || eventData.end_time || eventData.hora_fim || ""
+    const endTime = formatTimeString(eventData.horario_fim) || formatTimeString(eventData.end_time) || formatTimeString(eventData.hora_fim) || ""
     const pax = eventData.pax || eventData.num_pax || eventData.numero_pax || ""
 
     console.log(`[API] Extracted fields - Start Time: "${startTime}", End Time: "${endTime}", PAX: "${pax}"`)
