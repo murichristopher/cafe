@@ -15,6 +15,8 @@ const formatTimeFromDate = (dateString: string | null): string => {
   try {
     const date = new Date(dateString)
     if (isNaN(date.getTime())) return ""
+    
+    // Usar a mesma lógica do formatTimeString
     return `${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`
   } catch (error) {
     console.error("Error formatting time from date:", error)
