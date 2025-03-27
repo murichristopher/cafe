@@ -12,12 +12,12 @@ const formatTimeFromDate = (dateString: string | null): string => {
   if (!dateString) return ""
 
   try {
-    const date = new Date(dateString)
-    // Check if date is valid
-    if (isNaN(date.getTime())) return ""
-
-    // Usar a mesma lógica do formatTimeString
-    return `${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`
+    // Extrair apenas a parte da hora da string ISO (HH:mm)
+    const timeMatch = dateString.match(/T(\d{2}:\d{2})/)
+    if (timeMatch && timeMatch[1]) {
+      return formatTimeString(timeMatch[1])
+    }
+    return ""
   } catch (error) {
     console.error("Error formatting time from date:", error)
     return ""
