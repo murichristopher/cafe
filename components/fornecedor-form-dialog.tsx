@@ -26,6 +26,7 @@ export function FornecedorFormDialog() {
     name: "",
     email: "",
     phone_number: "",
+    password: "",
   })
   const [errors, setErrors] = useState<Record<string, string>>({})
 
@@ -73,6 +74,12 @@ export function FornecedorFormDialog() {
       newErrors.email = "Email inválido"
     }
 
+    if (!formData.password.trim()) {
+      newErrors.password = "Senha é obrigatória"
+    } else if (formData.password.length < 6) {
+      newErrors.password = "A senha deve ter pelo menos 6 caracteres"
+    }
+
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
   }
@@ -88,7 +95,12 @@ export function FornecedorFormDialog() {
 
     try {
       // Use the admin-specific server action to create the fornecedor
-      const result = await adminCreateFornecedor(formData.name, formData.email, formData.phone_number)
+      const result = await adminCreateFornecedor(
+        formData.name,
+        formData.email,
+        formData.phone_number,
+        formData.password
+      )
 
       if (!result.success) {
         throw new Error(result.error || "Falha ao criar fornecedor")
@@ -96,16 +108,14 @@ export function FornecedorFormDialog() {
 
       toast({
         title: "Fornecedor criado com sucesso",
-        description: "Um email foi enviado para o fornecedor com instruções de acesso.",
+        description: "O fornecedor foi criado e já pode acessar o sistema.",
       })
 
       // Reset form and close dialog
-      setFormData({ name: "", email: "", phone_number: "" })
+      setFormData({ name: "", email: "", phone_number: "", password: "" })
       setOpen(false)
 
       // Refresh the page to show the new fornecedor
-      // This is optional, you could also use a more elegant approach
-      // like updating the state or using SWR/React Query to refetch data
       setTimeout(() => {
         window.location.reload()
       }, 1000)
@@ -132,7 +142,7 @@ export function FornecedorFormDialog() {
         <DialogHeader>
           <DialogTitle>Adicionar Novo Fornecedor</DialogTitle>
           <DialogDescription>
-            Preencha os dados do fornecedor. Um email será enviado com instruções de acesso.
+            Preencha os dados do fornecedor para criar sua conta.
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit}>
@@ -159,6 +169,18 @@ export function FornecedorFormDialog() {
                 className={`bg-[#111] border-zinc-700 ${errors.email ? "border-red-500" : ""}`}
               />
               {errors.email && <p className="text-sm text-red-500">{errors.email}</p>}
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="password">Senha</Label>
+              <Input
+                id="password"
+                name="password"
+                type="password"
+                value={formData.password}
+                onChange={handleChange}
+                className={`bg-[#111] border-zinc-700 ${errors.password ? "border-red-500" : ""}`}
+              />
+              {errors.password && <p className="text-sm text-red-500">{errors.password}</p>}
             </div>
             <div className="grid gap-2">
               <Label htmlFor="phone_number">Telefone (opcional)</Label>

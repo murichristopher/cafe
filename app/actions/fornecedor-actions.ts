@@ -6,7 +6,12 @@ import { createClient } from "@supabase/supabase-js"
  * Admin-specific server action to create a fornecedor
  * This uses the service role key for elevated permissions
  */
-export async function adminCreateFornecedor(name: string, email: string, phoneNumber: string) {
+export async function adminCreateFornecedor(
+  name: string,
+  email: string,
+  phoneNumber: string,
+  password: string
+) {
   try {
     // Create a direct Supabase client using environment variables
     // This will have the same permissions as your service role
@@ -33,13 +38,10 @@ export async function adminCreateFornecedor(name: string, email: string, phoneNu
       }
     }
 
-    // Generate a random password
-    const tempPassword = Math.random().toString(36).slice(-8) + Math.random().toString(36).slice(-8)
-
-    // Create auth user using the regular signup method
+    // Create auth user using the provided password
     const { data: authData, error: authError } = await supabase.auth.signUp({
       email,
-      password: tempPassword,
+      password,
       options: {
         data: {
           name,
@@ -80,7 +82,7 @@ export async function adminCreateFornecedor(name: string, email: string, phoneNu
     return {
       success: true,
       error: null,
-      message: "Fornecedor criado com sucesso. Um email de confirmação foi enviado.",
+      message: "Fornecedor criado com sucesso.",
     }
   } catch (error: any) {
     console.error("Unexpected error creating fornecedor:", error)
