@@ -20,7 +20,7 @@ export default function RegisterPage() {
   const [name, setName] = useState("")
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
-  const [role, setRole] = useState<"admin" | "fornecedor">("admin")
+  const [role] = useState<"fornecedor">("fornecedor")
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const { toast } = useToast()
@@ -56,9 +56,7 @@ export default function RegisterPage() {
         toast({
           title: "Conta criada com sucesso",
           description:
-            role === "fornecedor"
-              ? "Você já pode fazer login no sistema. Você precisará adicionar seu telefone após o login."
-              : "Você já pode fazer login no sistema.",
+            "Você já pode fazer login no sistema. Você precisará adicionar seu telefone após o login.",
         })
         // Redirecionar para o login após registro bem-sucedido
         router.push("/login")
@@ -140,25 +138,19 @@ export default function RegisterPage() {
               </div>
               <div className="space-y-2">
                 <Label>Tipo de Usuário</Label>
-                <RadioGroup value={role} onValueChange={(value) => setRole(value as "admin" | "fornecedor")}>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="admin" id="admin" />
-                    <Label htmlFor="admin">Administrador</Label>
-                  </div>
+                <RadioGroup value="fornecedor">
                   <div className="flex items-center space-x-2">
                     <RadioGroupItem value="fornecedor" id="fornecedor" />
                     <Label htmlFor="fornecedor">Fornecedor</Label>
                   </div>
                 </RadioGroup>
               </div>
-              {role === "fornecedor" && (
-                <Alert className="bg-blue-900/20 border-blue-800 text-blue-200">
-                  <AlertCircle className="h-4 w-4" />
-                  <AlertDescription>
-                    Fornecedores precisarão adicionar um número de telefone após o login.
-                  </AlertDescription>
-                </Alert>
-              )}
+              <Alert className="bg-blue-900/20 border-blue-800 text-blue-200">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>
+                  Fornecedores precisarão adicionar um número de telefone após o login.
+                </AlertDescription>
+              </Alert>
               <Button
                 type="submit"
                 className="w-full bg-yellow-400 hover:bg-yellow-500 text-black"
