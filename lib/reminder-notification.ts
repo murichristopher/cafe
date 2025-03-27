@@ -13,12 +13,15 @@ const formatTimeFromDate = (dateString: string | null): string => {
   if (!dateString) return ""
 
   try {
-    // Extrair apenas a parte da hora da string ISO (HH:mm)
-    const timeMatch = dateString.match(/T(\d{2}:\d{2})/)
-    if (timeMatch && timeMatch[1]) {
-      return formatTimeString(timeMatch[1])
-    }
-    return ""
+    const date = new Date(dateString)
+    if (isNaN(date.getTime())) return ""
+    
+    // Subtrair 3 horas da hora que vem
+    const hours = date.getHours() - 3
+    const adjustedHours = hours < 0 ? hours + 24 : hours
+    const minutes = date.getMinutes()
+    
+    return `${String(adjustedHours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`
   } catch (error) {
     console.error("Error formatting time from date:", error)
     return ""
