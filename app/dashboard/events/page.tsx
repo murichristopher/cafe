@@ -30,7 +30,7 @@ import { format } from "date-fns"
 import { ptBR } from "date-fns/locale"
 
 export default function EventsPage() {
-  const { user } = useAuth()
+  const { user, refreshAuth } = useAuth()
   const router = useRouter()
   const { toast } = useToast()
   const [events, setEvents] = useState<EventWithFornecedores[]>([])
@@ -40,6 +40,7 @@ export default function EventsPage() {
   const [viewMode, setViewMode] = useState<"grid" | "table">("grid")
   const [eventToDelete, setEventToDelete] = useState<string | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
+  const [hasError, setHasError] = useState(false)
   const [filters, setFilters] = useState({
     status: "",
     startDate: "",
@@ -49,161 +50,275 @@ export default function EventsPage() {
     pagamento: "",
   })
 
-  useEffect(() => {
-    const fetchEvents = async () => {
-      setIsLoading(true)
-
-      try {
-        let query = supabase.from("events").select("*")
-
-        // Aplicar filtros
-        if (filters.status) {
-          query = query.eq("status", filters.status)
+  // Função para tentar carregar eventos com timeout e retries
+  const loadEvents = async (retry = 0) => {
+    setIsLoading(true)
+    setHasError(false)
+    
+    try {
+      // Definir um tempo limite para a operação (8 segundos)
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error("Timeout ao carregar eventos")), 8000)
+      })
+      
+      // Executar a busca com limite de tempo
+      await Promise.race([fetchEvents(), timeoutPromise])
+    } catch (error) {
+      console.error(`Erro ao carregar eventos (tentativa ${retry + 1}/3):`, error)
+      
+      // Se for a primeira tentativa com erro, tentamos renovar a sessão
+      if (retry === 0) {
+        try {
+          console.log("Renovando sessão antes de tentar novamente...")
+          await refreshAuth()
+          // Tentar novamente após renovar
+          return loadEvents(retry + 1)
+        } catch (authError) {
+          console.error("Erro ao renovar sessão:", authError)
         }
+      }
+      
+      // Se ainda tiver tentativas, aguardar e tentar novamente
+      if (retry < 2) {
+        const waitTime = Math.pow(2, retry) * 1000
+        console.log(`Tentando novamente em ${waitTime}ms...`)
+        setTimeout(() => loadEvents(retry + 1), waitTime)
+      } else {
+        // Mostrar erro se esgotaram as tentativas
+        setHasError(true)
+        toast({
+          title: "Erro ao carregar eventos",
+          description: "Não foi possível carregar os eventos após várias tentativas.",
+          variant: "destructive",
+        })
+      }
+    } finally {
+      setIsLoading(false)
+    }
+  }
 
-        if (filters.pagamento) {
-          query = query.eq("pagamento", filters.pagamento)
-        }
+  const fetchEvents = async () => {
+    try {
+      let query = supabase.from("events").select("*")
 
-        if (filters.startDate) {
-          query = query.gte("date", filters.startDate)
-        }
+      // Aplicar filtros
+      if (filters.status) {
+        query = query.eq("status", filters.status)
+      }
 
-        if (filters.endDate) {
-          // Adicionar um dia ao endDate para incluir eventos do próprio dia
-          const endDate = new Date(filters.endDate)
-          endDate.setDate(endDate.getDate() + 1)
-          query = query.lt("date", endDate.toISOString())
-        }
+      if (filters.pagamento) {
+        query = query.eq("pagamento", filters.pagamento)
+      }
 
-        if (filters.search) {
-          query = query.or(
-            `title.ilike.%${filters.search}%,description.ilike.%${filters.search}%,location.ilike.%${filters.search}%`,
-          )
-        }
+      if (filters.startDate) {
+        query = query.gte("date", filters.startDate)
+      }
 
-        // Se o usuário for fornecedor, mostrar apenas eventos associados a ele
-        if (user?.role === "fornecedor") {
-          // Buscar eventos onde o usuário é um dos fornecedores
-          const { data: eventFornecedores, error: fornecedoresError } = await supabase
-            .from("event_fornecedores")
-            .select("event_id")
-            .eq("fornecedor_id", user.id)
+      if (filters.endDate) {
+        // Adicionar um dia ao endDate para incluir eventos do próprio dia
+        const endDate = new Date(filters.endDate)
+        endDate.setDate(endDate.getDate() + 1)
+        query = query.lt("date", endDate.toISOString())
+      }
 
-          if (fornecedoresError) {
-            console.error("Erro ao buscar eventos do fornecedor:", fornecedoresError)
-            return
-          }
+      if (filters.search) {
+        query = query.or(
+          `title.ilike.%${filters.search}%,description.ilike.%${filters.search}%,location.ilike.%${filters.search}%`,
+        )
+      }
 
-          // Se não houver eventos associados, mostrar lista vazia
-          if (!eventFornecedores || eventFornecedores.length === 0) {
-            setEvents([])
-            setIsLoading(false)
-            return
-          }
+      // Se o usuário for fornecedor, mostrar apenas eventos associados a ele
+      if (user?.role === "fornecedor") {
+        // Buscar eventos onde o usuário é um dos fornecedores
+        const { data: eventFornecedores, error: fornecedoresError } = await supabase
+          .from("event_fornecedores")
+          .select("event_id")
+          .eq("fornecedor_id", user.id)
 
-          // Buscar eventos onde o usuário é um dos fornecedores ou o fornecedor principal
-          const eventIds = eventFornecedores.map((ef) => ef.event_id)
-          query = query.or(`id.in.(${eventIds.join(",")}),fornecedor_id.eq.${user.id}`)
-        }
-
-        // Filtrar por fornecedor específico se o filtro estiver ativo
-        if (filters.fornecedor && user?.role === "admin") {
-          // Buscar eventos onde o fornecedor específico está associado
-          const { data: eventFornecedores, error: fornecedoresError } = await supabase
-            .from("event_fornecedores")
-            .select("event_id")
-            .eq("fornecedor_id", filters.fornecedor)
-
-          if (fornecedoresError) {
-            console.error("Erro ao buscar eventos do fornecedor:", fornecedoresError)
-          } else if (eventFornecedores && eventFornecedores.length > 0) {
-            const eventIds = eventFornecedores.map((ef) => ef.event_id)
-            query = query.or(`id.in.(${eventIds.join(",")}),fornecedor_id.eq.${filters.fornecedor}`)
-          } else {
-            // Se não houver eventos associados a este fornecedor, filtrar apenas pelo fornecedor_id
-            query = query.eq("fornecedor_id", filters.fornecedor)
-          }
-        }
-
-        // Ordenar por data
-        query = query.order("date", { ascending: false })
-
-        const { data, error } = await query
-
-        if (error) {
-          console.error("Erro ao buscar eventos:", error)
-          toast({
-            title: "Erro ao carregar eventos",
-            description: "Não foi possível carregar a lista de eventos.",
-            variant: "destructive",
-          })
+        if (fornecedoresError) {
+          console.error("Erro ao buscar eventos do fornecedor:", fornecedoresError)
           return
         }
 
-        // Para cada evento, buscar os fornecedores associados
-        const eventsWithFornecedores = await Promise.all(
-          data.map(async (event) => {
-            // Buscar os fornecedores associados ao evento
-            const { data: eventFornecedores, error: fornecedoresError } = await supabase
-              .from("event_fornecedores")
-              .select("fornecedor_id")
-              .eq("event_id", event.id)
+        // Se não houver eventos associados, mostrar lista vazia
+        if (!eventFornecedores || eventFornecedores.length === 0) {
+          setEvents([])
+          setIsLoading(false)
+          return
+        }
 
-            if (fornecedoresError) {
-              console.error("Erro ao buscar fornecedores do evento:", fornecedoresError)
-              return { ...event, fornecedores: [] }
-            }
+        // Buscar eventos onde o usuário é um dos fornecedores ou o fornecedor principal
+        const eventIds = eventFornecedores.map((ef) => ef.event_id)
+        query = query.or(`id.in.(${eventIds.join(",")}),fornecedor_id.eq.${user.id}`)
+      }
 
-            // Se temos fornecedores associados, buscar seus detalhes
-            let fornecedoresList: User[] = []
-            if (eventFornecedores && eventFornecedores.length > 0) {
-              const fornecedorIds = eventFornecedores.map((ef) => ef.fornecedor_id)
+      // Filtrar por fornecedor específico se o filtro estiver ativo
+      if (filters.fornecedor && user?.role === "admin") {
+        // Buscar eventos onde o fornecedor específico está associado
+        const { data: eventFornecedores, error: fornecedoresError } = await supabase
+          .from("event_fornecedores")
+          .select("event_id")
+          .eq("fornecedor_id", filters.fornecedor)
 
-              const { data: fornecedoresData, error: fornecedoresDataError } = await supabase
-                .from("users")
-                .select("*")
-                .in("id", fornecedorIds)
+        if (fornecedoresError) {
+          console.error("Erro ao buscar eventos do fornecedor:", fornecedoresError)
+        } else if (eventFornecedores && eventFornecedores.length > 0) {
+          const eventIds = eventFornecedores.map((ef) => ef.event_id)
+          query = query.or(`id.in.(${eventIds.join(",")}),fornecedor_id.eq.${filters.fornecedor}`)
+        } else {
+          // Se não houver eventos associados a este fornecedor, filtrar apenas pelo fornecedor_id
+          query = query.eq("fornecedor_id", filters.fornecedor)
+        }
+      }
 
-              if (fornecedoresDataError) {
-                console.error("Erro ao buscar detalhes dos fornecedores:", fornecedoresDataError)
-              } else {
-                fornecedoresList = fornecedoresData as User[]
-              }
-            }
+      // Ordenar por data
+      query = query.order("date", { ascending: false })
 
-            // Se não temos fornecedores na tabela de relacionamento mas temos um fornecedor_id, usar esse
-            if (fornecedoresList.length === 0 && event.fornecedor_id) {
-              const { data: fornecedorData, error: fornecedorError } = await supabase
-                .from("users")
-                .select("*")
-                .eq("id", event.fornecedor_id)
-                .single()
+      const { data, error } = await query
 
-              if (!fornecedorError && fornecedorData) {
-                fornecedoresList = [fornecedorData]
-              }
-            }
-
-            return { ...event, fornecedores: fornecedoresList }
-          }),
-        )
-
-        setEvents(eventsWithFornecedores as EventWithFornecedores[])
-      } catch (error) {
+      if (error) {
         console.error("Erro ao buscar eventos:", error)
         toast({
           title: "Erro ao carregar eventos",
-          description: "Ocorreu um erro inesperado ao buscar os eventos.",
+          description: "Não foi possível carregar a lista de eventos.",
           variant: "destructive",
         })
-      } finally {
+        return
+      }
+
+      // Para cada evento, buscar os fornecedores associados
+      const eventsWithFornecedores = await Promise.all(
+        data.map(async (event) => {
+          // Buscar os fornecedores associados ao evento
+          const { data: eventFornecedores, error: fornecedoresError } = await supabase
+            .from("event_fornecedores")
+            .select("fornecedor_id")
+            .eq("event_id", event.id)
+
+          if (fornecedoresError) {
+            console.error("Erro ao buscar fornecedores do evento:", fornecedoresError)
+            return { ...event, fornecedores: [] }
+          }
+
+          // Se temos fornecedores associados, buscar seus detalhes
+          let fornecedoresList: User[] = []
+          if (eventFornecedores && eventFornecedores.length > 0) {
+            const fornecedorIds = eventFornecedores.map((ef) => ef.fornecedor_id)
+
+            const { data: fornecedoresData, error: fornecedoresDataError } = await supabase
+              .from("users")
+              .select("*")
+              .in("id", fornecedorIds)
+
+            if (fornecedoresDataError) {
+              console.error("Erro ao buscar detalhes dos fornecedores:", fornecedoresDataError)
+            } else {
+              fornecedoresList = fornecedoresData as User[]
+            }
+          }
+
+          // Se não temos fornecedores na tabela de relacionamento mas temos um fornecedor_id, usar esse
+          if (fornecedoresList.length === 0 && event.fornecedor_id) {
+            const { data: fornecedorData, error: fornecedorError } = await supabase
+              .from("users")
+              .select("*")
+              .eq("id", event.fornecedor_id)
+              .single()
+
+            if (!fornecedorError && fornecedorData) {
+              fornecedoresList = [fornecedorData]
+            }
+          }
+
+          return { ...event, fornecedores: fornecedoresList }
+        }),
+      )
+
+      setEvents(eventsWithFornecedores as EventWithFornecedores[])
+      
+      // Salvar no localStorage para cache
+      localStorage.setItem('cached_events', JSON.stringify(eventsWithFornecedores))
+      localStorage.setItem('cached_events_timestamp', Date.now().toString())
+    } catch (error) {
+      console.error("Erro ao buscar eventos:", error)
+      
+      // Tentar usar cache como fallback
+      try {
+        const cachedEvents = localStorage.getItem('cached_events')
+        const timestamp = localStorage.getItem('cached_events_timestamp')
+        
+        if (cachedEvents && timestamp) {
+          const age = Date.now() - Number(timestamp)
+          // Usar cache se tiver menos de 1 hora
+          if (age < 60 * 60 * 1000) {
+            console.log("Usando cache de eventos como fallback")
+            setEvents(JSON.parse(cachedEvents))
+            return
+          }
+        }
+      } catch (cacheError) {
+        console.error("Erro ao usar cache de eventos:", cacheError)
+      }
+      
+      // Se não conseguiu usar o cache, propagar o erro para ser tratado em loadEvents
+      throw error
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  // Função para recarregar eventos (pode ser chamada por um botão)
+  const handleRetry = async () => {
+    await loadEvents(0)
+  }
+
+  // Effect para carregar eventos ao montar o componente e quando filtros mudarem
+  useEffect(() => {
+    // Primeiro verificamos se temos dados em cache recente para mostrar
+    const cachedEvents = localStorage.getItem('cached_events')
+    const timestamp = localStorage.getItem('cached_events_timestamp')
+    
+    if (cachedEvents && timestamp) {
+      const age = Date.now() - Number(timestamp)
+      // Se o cache tem menos de 5 minutos, usamos ele primeiro
+      if (age < 5 * 60 * 1000) {
+        console.log("Usando cache de eventos para carregamento inicial")
+        setEvents(JSON.parse(cachedEvents))
         setIsLoading(false)
+        
+        // Mesmo usando o cache, iniciamos um carregamento em segundo plano
+        setTimeout(() => {
+          loadEvents(0)
+        }, 1000)
+        return
       }
     }
+    
+    // Se não temos cache recente, carregamos normalmente
+    loadEvents(0)
+  }, [filters])
 
-    fetchEvents()
-  }, [user, toast, filters])
+  // Effect para detectar quando o usuário volta à aba
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        // Aguardar um momento e verificar se os dados precisam ser recarregados
+        setTimeout(() => {
+          const timestamp = localStorage.getItem('cached_events_timestamp')
+          if (!timestamp || (Date.now() - Number(timestamp) > 5 * 60 * 1000)) {
+            console.log("Recarregando eventos após retornar à aba")
+            loadEvents(0)
+          }
+        }, 1000)
+      }
+    }
+    
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+    }
+  }, [])
 
   const handleExport = async (type: "csv" | "excel") => {
     setIsExporting(true)
@@ -385,6 +500,17 @@ export default function EventsPage() {
           <div className="flex justify-center items-center h-64">
             <div className="h-8 w-8 animate-spin rounded-full border-4 border-amber-500 border-t-transparent"></div>
           </div>
+        ) : hasError ? (
+          <div className="flex flex-col items-center justify-center h-64 text-center">
+            <p className="text-lg text-red-500 mb-4">Erro ao carregar eventos</p>
+            <Button 
+              onClick={handleRetry}
+              variant="outline"
+              className="border-zinc-700 hover:bg-zinc-800"
+            >
+              Tentar novamente
+            </Button>
+          </div>
         ) : events.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-64 text-center">
             <p className="text-lg text-gray-500 mb-4">Nenhum evento encontrado</p>
@@ -515,6 +641,28 @@ export default function EventsPage() {
           </div>
         )}
       </div>
+
+      <AlertDialog open={!!eventToDelete} onOpenChange={(isOpen) => !isOpen && setEventToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirmar exclusão</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir este evento? Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteEvent}
+              disabled={isDeleting}
+              className="bg-red-500 hover:bg-red-600"
+            >
+              {isDeleting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4 mr-2" />}
+              {isDeleting ? "Excluindo..." : "Excluir"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

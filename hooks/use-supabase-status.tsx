@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { supabase } from "@/lib/supabase"
+import { supabase, refreshSession } from "@/lib/supabase"
 import { useToast } from "@/hooks/use-toast"
 
 export function useSupabaseStatus() {
@@ -67,10 +67,34 @@ export function useSupabaseStatus() {
     
     // Configure periodic connection checks
     const intervalId = setInterval(checkConnection, 30000) // Check every 30 seconds
+
+    // Detectar quando o usuário sai e volta à aba
+    const handleVisibilityChange = async () => {
+      if (document.visibilityState === 'visible') {
+        console.log("Usuário retornou à aba, renovando sessão...")
+        setIsLoading(true)
+        
+        // Tentar renovar a sessão
+        const success = await refreshSession()
+        if (success) {
+          console.log("Sessão renovada com sucesso")
+          // Verificar a conexão
+          checkConnection()
+        } else {
+          console.error("Falha ao renovar sessão")
+          setIsConnected(false)
+          setIsLoading(false)
+        }
+      }
+    }
+
+    // Adicionar listener para mudanças de visibilidade
+    document.addEventListener('visibilitychange', handleVisibilityChange)
     
     return () => {
       isMounted = false
       clearInterval(intervalId)
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
     }
   }, [toast, hasShownError])
 
@@ -78,6 +102,14 @@ export function useSupabaseStatus() {
     setIsLoading(true)
     
     try {
+      // Primeiro tentamos renovar a sessão
+      const sessionRefreshed = await refreshSession()
+      
+      if (!sessionRefreshed) {
+        console.log("Falha na renovação da sessão, tentando reconectar diretamente")
+      }
+      
+      // Tentar fazer uma consulta para verificar a conexão
       const { error } = await supabase.from("users").select("count").limit(1)
       
       if (error) {

@@ -1,6 +1,9 @@
 import { createClient } from "@supabase/supabase-js"
 import type { Database } from "@/types"
 
+// Verificar se estamos em ambiente de navegador
+const isBrowser = () => typeof window !== 'undefined'
+
 // Obter as variáveis de ambiente
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
@@ -8,9 +11,6 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 // Verificar se as variáveis de ambiente estão definidas e são válidas
 if (!supabaseUrl) {
   console.error("NEXT_PUBLIC_SUPABASE_URL não está definida")
-  // Fornecer uma URL padrão para evitar erros de renderização
-  // Isso permitirá que a aplicação carregue, mas as operações do Supabase falharão
-  // até que a URL correta seja configurada
 }
 
 if (!supabaseAnonKey) {
@@ -28,11 +28,16 @@ try {
 }
 
 // Criar cliente Supabase com verificação de tipo
-// Usamos uma URL válida padrão se a URL fornecida não for válida
-// Isso permitirá que a aplicação carregue, mas as operações do Supabase falharão
 export const supabase = createClient<Database>(
   isValidUrl ? supabaseUrl! : "https://placeholder-url.supabase.co",
   supabaseAnonKey || "placeholder-key",
+  {
+    auth: {
+      autoRefreshToken: true,
+      persistSession: true,
+      storageKey: 'supabase_auth'
+    }
+  }
 )
 
 // Função auxiliar para verificar se o Supabase está configurado corretamente
@@ -43,16 +48,8 @@ export function isSupabaseConfigured(): boolean {
 // Função auxiliar para verificar a conectividade com o Supabase
 export async function checkSupabaseConnectivity(): Promise<boolean> {
   try {
-    // Definir um timeout para a operação
-    const timeoutPromise = new Promise<{ data: null; error: Error }>((_, reject) =>
-      setTimeout(() => reject(new Error("Timeout ao verificar conectividade")), 5000),
-    )
-
     // Tentar fazer uma consulta simples
-    const queryPromise = supabase.from("users").select("count").limit(1)
-
-    // Usar Promise.race para limitar o tempo de espera
-    const { error } = await Promise.race([queryPromise, timeoutPromise])
+    const { error } = await supabase.from("users").select("count").limit(1)
 
     if (error) {
       console.error("Erro ao verificar conectividade:", error)
@@ -89,5 +86,24 @@ export async function retrySupabaseConnection(maxRetries = 3): Promise<boolean> 
   }
 
   return false
+}
+
+// Função para renovar a sessão do usuário
+export async function refreshSession(): Promise<boolean> {
+  if (!isBrowser()) return false
+  
+  try {
+    const { data, error } = await supabase.auth.refreshSession()
+    
+    if (error) {
+      console.error("Erro ao renovar sessão:", error)
+      return false
+    }
+    
+    return !!data.session
+  } catch (error) {
+    console.error("Erro inesperado ao renovar sessão:", error)
+    return false
+  }
 }
 
