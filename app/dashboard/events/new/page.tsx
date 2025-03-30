@@ -18,6 +18,7 @@ import { useToast } from "@/hooks/use-toast"
 import Link from "next/link"
 import { ImageUploadSimple } from "@/components/ui/image-upload-simple"
 import type { Option } from "@/components/ui/multi-select"
+import { SupabaseConnectionAlert } from "@/components/supabase-connection-alert"
 
 // Define the User type
 type User = {
@@ -56,40 +57,105 @@ export default function NewEventPage() {
 
   // Fetch fornecedores on component mount
   useEffect(() => {
+    let isMounted = true;
+    let retryCount = 0;
+    const maxRetries = 3;
+
     const fetchFornecedores = async () => {
+      if (!isMounted) return;
+      
       try {
-        const { data, error } = await supabase.from("users").select("id, name").eq("role", "fornecedor")
+        console.log(`Tentativa ${retryCount + 1} de busca de fornecedores...`);
+        const { data, error } = await supabase.from("users").select("id, name").eq("role", "fornecedor");
 
         if (error) {
-          console.error("Erro ao buscar fornecedores:", error)
-          toast({
-            title: "Erro ao carregar fornecedores",
-            description: error.message,
-            variant: "destructive",
-          })
-          return
+          console.error(`Erro ao buscar fornecedores (tentativa ${retryCount + 1}):`, error);
+          
+          if (retryCount < maxRetries) {
+            retryCount++;
+            // Aguardar um tempo antes de tentar novamente usando exponential backoff
+            const delay = Math.pow(2, retryCount) * 1000;
+            console.log(`Tentando novamente em ${delay / 1000} segundos...`);
+            setTimeout(fetchFornecedores, delay);
+            return;
+          } else {
+            toast({
+              title: "Erro ao carregar fornecedores",
+              description: `Após várias tentativas: ${error.message}. Por favor, recarregue a página.`,
+              variant: "destructive",
+            });
+            setFetchingFornecedores(false);
+            return;
+          }
         }
 
-        setFornecedores(
-          data.map((user) => ({
-            label: user.name,
-            value: user.id,
-          })),
-        )
-      } catch (error) {
-        console.error("Erro ao buscar fornecedores:", error)
-        toast({
-          title: "Erro ao carregar fornecedores",
-          description: "Ocorreu um erro inesperado ao buscar fornecedores.",
-          variant: "destructive",
-        })
-      } finally {
-        setFetchingFornecedores(false)
-      }
-    }
+        // Verificar se os dados retornados são um array válido
+        if (!Array.isArray(data)) {
+          console.error("Dados retornados não são um array válido:", data);
+          setFornecedores([]);
+          setFetchingFornecedores(false);
+          return;
+        }
 
-    fetchFornecedores()
-  }, [toast])
+        console.log(`Fornecedores encontrados: ${data.length}`);
+        
+        if (isMounted) {
+          setFornecedores(
+            data.map((user) => ({
+              label: user.name,
+              value: user.id,
+            }))
+          );
+          setFetchingFornecedores(false);
+        }
+      } catch (error) {
+        console.error(`Erro ao buscar fornecedores (tentativa ${retryCount + 1}):`, error);
+        
+        if (retryCount < maxRetries) {
+          retryCount++;
+          // Aguardar um tempo antes de tentar novamente
+          const delay = Math.pow(2, retryCount) * 1000;
+          console.log(`Tentando novamente em ${delay / 1000} segundos...`);
+          setTimeout(fetchFornecedores, delay);
+        } else {
+          if (isMounted) {
+            toast({
+              title: "Erro ao carregar fornecedores",
+              description: "Ocorreu um erro inesperado ao buscar fornecedores. Por favor, recarregue a página.",
+              variant: "destructive",
+            });
+            setFetchingFornecedores(false);
+          }
+        }
+      }
+    };
+
+    // Iniciar busca de fornecedores 
+    fetchFornecedores();
+    
+    // Configurar um timeout para evitar loading infinito
+    // Modificado para mostrar aviso apenas se ainda estiver carregando após 10 segundos
+    // E apenas se não tivermos fornecedores ainda
+    const timeoutId = setTimeout(() => {
+      if (isMounted && fetchingFornecedores && fornecedores.length === 0) {
+        console.warn("Timeout ao buscar fornecedores - finalizando carregamento forçadamente");
+        setFetchingFornecedores(false);
+        toast({
+          title: "Aviso",
+          description: "A busca de fornecedores está demorando mais que o esperado. Tente recarregar a página.",
+          variant: "default",
+        });
+      } else if (isMounted && fetchingFornecedores) {
+        // Se temos fornecedores mas ainda estamos carregando, apenas finalizar o carregamento silenciosamente
+        setFetchingFornecedores(false);
+      }
+    }, 10000); // 10 segundos de timeout
+    
+    return () => {
+      isMounted = false;
+      clearTimeout(timeoutId);
+    };
+  }, [toast, fornecedores.length]);
 
   const handleImageUpload = (imageUrl: string) => {
     setEventImage(imageUrl)
@@ -259,13 +325,16 @@ export default function NewEventPage() {
         console.error("Erro ao enviar notificações:", notifyError)
       }
 
+      // Exibir notificação de sucesso
       toast({
         title: "Evento criado com sucesso",
         description: "O evento foi criado e os fornecedores foram notificados via WhatsApp.",
       })
 
-      // Redirecionar para a listagem de eventos
-      router.push("/dashboard/events")
+      // Redirecionar para lista de eventos e forçar recarregamento completo
+      // Definir um cookie ou valor no localStorage para indicar que a página deve ser recarregada
+      localStorage.setItem('forceReload', 'true');
+      window.location.href = "/dashboard/events";
     } catch (error: any) {
       console.error("Erro ao criar evento:", error)
       toast({
@@ -285,15 +354,24 @@ export default function NewEventPage() {
   }
 
   return (
-    <div className="mx-auto max-w-3xl">
-      <div className="mb-4">
-        <Link href="/dashboard/events" className="flex items-center text-yellow-400 hover:underline">
-          <ArrowLeft className="mr-2 h-4 w-4" />
-          Voltar para eventos
-        </Link>
+    <div className="container py-10">
+      <div className="flex items-center justify-between mb-6">
+        <Button variant="outline" size="sm" asChild>
+          <Link href="/dashboard/events" className="flex items-center">
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Voltar para Eventos
+          </Link>
+        </Button>
       </div>
 
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
+      <SupabaseConnectionAlert />
+
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3 }}
+        className="space-y-6"
+      >
         <Card className="border-zinc-800 shadow-lg bg-[#1a1a1a] dark:bg-[#1a1a1a]">
           <CardHeader>
             <CardTitle className="text-2xl text-white">Novo Evento</CardTitle>
@@ -466,11 +544,29 @@ export default function NewEventPage() {
                 </Label>
                 <div className="border border-input rounded-md p-3 max-h-60 overflow-y-auto">
                   {fetchingFornecedores ? (
-                    <div className="flex items-center justify-center p-2">
-                      <Loader2 className="h-4 w-4 animate-spin" />
+                    <div className="flex flex-col items-center justify-center p-4 space-y-2">
+                      <Loader2 className="h-5 w-5 animate-spin text-yellow-500" />
+                      <p className="text-sm text-muted-foreground">Carregando fornecedores...</p>
                     </div>
                   ) : fornecedores.length === 0 ? (
-                    <p className="text-sm text-muted-foreground">Nenhum fornecedor disponível</p>
+                    <div className="flex flex-col items-center justify-center p-4 space-y-2">
+                      <p className="text-sm text-muted-foreground">Nenhum fornecedor disponível</p>
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        onClick={() => {
+                          setFetchingFornecedores(true);
+                          // Force a re-render to trigger the useEffect again
+                          setTimeout(() => {
+                            // Usar setTimeout para garantir que o estado seja atualizado
+                            // Este é um hack para forçar o re-render e disparar o useEffect
+                            window.location.reload();
+                          }, 100);
+                        }}
+                      >
+                        Tentar novamente
+                      </Button>
+                    </div>
                   ) : (
                     <div className="space-y-2">
                       {fornecedores.map((fornecedor) => (

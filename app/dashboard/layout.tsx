@@ -3,7 +3,7 @@
 import type React from "react"
 
 import { useEffect } from "react"
-import { useRouter } from "next/navigation"
+import { useRouter, usePathname } from "next/navigation"
 import { Navbar } from "@/components/navbar"
 import { Sidebar } from "@/components/sidebar"
 import { MobileNav } from "@/components/mobile-nav"
@@ -14,6 +14,7 @@ import { ProfileCheck } from "@/components/ProfileCheck" // Importar o ProfileCh
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth()
   const router = useRouter()
+  const pathname = usePathname()
 
   // // Efeito simples para redirecionar se não estiver logado
   // useEffect(() => {
@@ -32,6 +33,22 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   // if (!user) {
   //   router.push("/login")
   // }
+
+  // Verificar se precisamos forçar o recarregamento da página
+  useEffect(() => {
+    const shouldReload = localStorage.getItem('forceReload')
+    
+    if (shouldReload === 'true') {
+      // Limpar o flag para evitar loops de recarregamento
+      localStorage.removeItem('forceReload')
+      
+      // Usar setTimeout para garantir que o localStorage seja limpo antes do reload
+      setTimeout(() => {
+        console.log("Forçando recarregamento completo da página para evitar problemas de estado")
+        window.location.reload()
+      }, 100)
+    }
+  }, [pathname])
 
   // Se estiver logado, renderiza o layout normalmente
   return (

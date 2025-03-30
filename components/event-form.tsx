@@ -112,32 +112,63 @@ export function EventForm({ event, isEditing = false }: EventFormProps) {
           return
         }
 
+        // Verificar se os dados são válidos
+        if (!data || !Array.isArray(data)) {
+          console.error("Dados de fornecedores inválidos:", data)
+          return
+        }
+
+        console.log(`Encontrados ${data.length} fornecedores`)
         setFornecedores(data)
 
         // Se estiver editando, buscar os fornecedores associados a este evento
         if (isEditing && event) {
-          const { data: eventFornecedores, error: eventFornecedoresError } = await supabase
-            .from("event_fornecedores")
-            .select("fornecedor_id")
-            .eq("event_id", event.id)
+          try {
+            const { data: eventFornecedores, error: eventFornecedoresError } = await supabase
+              .from("event_fornecedores")
+              .select("fornecedor_id")
+              .eq("event_id", event.id)
 
-          if (eventFornecedoresError) {
-            console.error("Error fetching event fornecedores:", eventFornecedoresError)
-            return
+            if (eventFornecedoresError) {
+              console.error("Error fetching event fornecedores:", eventFornecedoresError)
+              return
+            }
+
+            if (eventFornecedores && Array.isArray(eventFornecedores)) {
+              const fornecedoresIds = eventFornecedores.map((ef) => ef.fornecedor_id)
+              setSelectedFornecedores(fornecedoresIds)
+              setPreviousFornecedores(fornecedoresIds) // Armazenar os fornecedores originais
+              form.setValue("fornecedores", fornecedoresIds)
+            }
+          } catch (innerError) {
+            console.error("Erro ao buscar fornecedores do evento:", innerError)
           }
-
-          const fornecedoresIds = eventFornecedores.map((ef) => ef.fornecedor_id)
-          setSelectedFornecedores(fornecedoresIds)
-          setPreviousFornecedores(fornecedoresIds) // Armazenar os fornecedores originais
-          form.setValue("fornecedores", fornecedoresIds)
         }
       } catch (error) {
         console.error("Error fetching fornecedores:", error)
       }
     }
 
+    // Iniciar busca de fornecedores
     fetchFornecedores()
-  }, [event, isEditing, form])
+    
+    // Configurar timeout para evitar problemas de carregamento infinito
+    const timeoutId = setTimeout(() => {
+      if (fornecedores.length === 0) {
+        console.warn("Timeout ao buscar fornecedores - verificando estado do Supabase")
+        // Tentar uma consulta simples para verificar a conexão
+        supabase.from("users").select("count").limit(1).then(
+          ({ error }) => {
+            if (error) {
+              console.error("Problema de conexão com o Supabase:", error)
+            }
+          }
+        )
+      }
+    }, 5000) // 5 segundos de timeout
+    
+    return () => clearTimeout(timeoutId)
+  }, [event, isEditing, form, fornecedores.length])
 
   // Função para lidar com o envio do formulário
   async function onSubmit(values: EventFormValues) {
@@ -256,13 +287,22 @@ export function EventForm({ event, isEditing = false }: EventFormProps) {
       }
 
       // Redirecionar para a página do evento
-      router.push(`/dashboard/events/${eventId}`)
-      router.refresh()
-
       toast({
         title: isEditing ? "Evento atualizado" : "Evento criado",
         description: isEditing ? "O evento foi atualizado com sucesso." : "O evento foi criado com sucesso.",
       })
+
+      // Delay curto antes de redirecionar para garantir que o toast seja exibido
+      setTimeout(() => {
+        // Definir flag para forçar recarregamento após redirecionamento
+        localStorage.setItem('forceReload', 'true');
+        
+        if (isEditing) {
+          window.location.href = `/dashboard/events/${eventId}`;
+        } else {
+          window.location.href = "/dashboard/events";
+        }
+      }, 500);
     } catch (error) {
       console.error("Error saving event:", error)
       toast({
