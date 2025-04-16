@@ -31,6 +31,7 @@ export function FornecedorEditDialog({ fornecedor, onFornecedorUpdated }: Fornec
     name: fornecedor.name,
     email: fornecedor.email,
     phone_number: fornecedor.phone_number || "",
+    password: "",
   })
   const [errors, setErrors] = useState<Record<string, string>>({})
 
@@ -43,6 +44,7 @@ export function FornecedorEditDialog({ fornecedor, onFornecedorUpdated }: Fornec
         name: fornecedor.name,
         email: fornecedor.email,
         phone_number: fornecedor.phone_number || "",
+        password: "",
       })
       setErrors({})
     }
@@ -119,6 +121,7 @@ export function FornecedorEditDialog({ fornecedor, onFornecedorUpdated }: Fornec
           name: formData.name,
           email: formData.email,
           phone_number: formData.phone_number || null,
+          password: formData.password || undefined,
         }),
       })
 
@@ -141,14 +144,22 @@ export function FornecedorEditDialog({ fornecedor, onFornecedorUpdated }: Fornec
         })
       }
 
-      if (result.changes) {
-        console.log("Changes applied:", result.changes)
+      // Verificar se houve erro na atualização da senha
+      if (result.passwordUpdated === false) {
+        console.warn("Warning from API:", result.passwordMessage)
+        toast({
+          title: "Atualização parcial",
+          description: result.passwordMessage || "Os dados do fornecedor foram atualizados, mas ocorreu um erro ao atualizar a senha.",
+          variant: "warning",
+        })
+      } else {
+        toast({
+          title: "Fornecedor atualizado",
+          description: formData.password 
+            ? "As informações e senha do fornecedor foram atualizadas com sucesso."
+            : "As informações do fornecedor foram atualizadas com sucesso.",
+        })
       }
-
-      toast({
-        title: "Fornecedor atualizado",
-        description: "As informações do fornecedor foram atualizadas com sucesso.",
-      })
 
       // Close dialog and refresh data
       setOpen(false)
@@ -212,6 +223,19 @@ export function FornecedorEditDialog({ fornecedor, onFornecedorUpdated }: Fornec
                 placeholder="(XX) XXXXX-XXXX"
                 className="bg-[#111] border-zinc-700"
               />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="password">Nova Senha (opcional)</Label>
+              <Input
+                id="password"
+                name="password"
+                type="password"
+                value={formData.password}
+                onChange={handleChange}
+                placeholder="Deixe em branco para manter a senha atual"
+                className={`bg-[#111] border-zinc-700 ${errors.password ? "border-red-500" : ""}`}
+              />
+              {errors.password && <p className="text-sm text-red-500">{errors.password}</p>}
             </div>
           </div>
           <DialogFooter>
