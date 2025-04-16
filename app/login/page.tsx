@@ -93,7 +93,7 @@ export default function LoginPage() {
             </div>
             <CardTitle className="text-2xl text-center">Login</CardTitle>
             <CardDescription className="text-center text-gray-400">
-              Entre com suas credenciais para acessar o sistema
+              Entr com suas credenciais para acessar o sistema
             </CardDescription>
           </CardHeader>
           <CardContent>
