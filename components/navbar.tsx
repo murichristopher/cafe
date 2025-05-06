@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { motion, AnimatePresence } from "framer-motion"
@@ -22,12 +22,92 @@ import Image from "next/image"
 import { format, formatDistanceToNow } from "date-fns"
 import { ptBR } from "date-fns/locale"
 import { Skeleton } from "@/components/ui/skeleton"
+import { supabase } from "@/lib/supabase"
 
 export function Navbar() {
   const { signOut, user } = useAuth()
-  const { notifications, unreadCount, loading, markAsRead, markAllAsRead } = useNotifications()
+  const notificationsContext = useNotifications()
   const [isOpen, setIsOpen] = useState(false)
   const router = useRouter()
+
+  // Estados locais para notificações (implementação direta)
+  const [notifications, setNotifications] = useState([])
+  const [unreadCount, setUnreadCount] = useState(0)
+  const [loading, setLoading] = useState(true)
+  const [pulseAnimation, setPulseAnimation] = useState(false)
+
+  // Buscar notificações diretamente do banco
+  const fetchNotificationsDirectly = async () => {
+    if (!user) return
+    
+    try {
+      setLoading(true)
+      console.log("Buscando notificações diretamente...")
+      
+      const { data, error } = await supabase
+        .from("notifications")
+        .select("*")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false })
+        .limit(50)
+
+      if (error) {
+        console.error("Erro ao buscar notificações diretas:", error)
+        return
+      }
+
+      console.log(`Encontradas ${data.length} notificações diretas`)
+      setNotifications(data || [])
+      
+      const newUnreadCount = data?.filter(n => !n.read).length || 0
+      
+      // Se chegou uma nova notificação não lida, ativar animação
+      if (newUnreadCount > unreadCount) {
+        setPulseAnimation(true)
+        setTimeout(() => setPulseAnimation(false), 3000)
+      }
+      
+      setUnreadCount(newUnreadCount)
+    } catch (error) {
+      console.error("Erro ao buscar notificações diretas:", error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Efeito para buscar notificações periodicamente
+  useEffect(() => {
+    if (!user) return
+
+    // Buscar notificações imediatamente
+    fetchNotificationsDirectly()
+
+    // Configurar intervalo para buscar notificações a cada 10 segundos
+    const interval = setInterval(fetchNotificationsDirectly, 10000)
+
+    // Configurar canal em tempo real para receber notificações
+    const channel = supabase
+      .channel(`notifications:${user.id}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "notifications",
+          filter: `user_id=eq.${user.id}`
+        },
+        (payload) => {
+          console.log("Mudança na notificação detectada:", payload)
+          fetchNotificationsDirectly()
+        }
+      )
+      .subscribe()
+
+    return () => {
+      clearInterval(interval)
+      supabase.removeChannel(channel)
+    }
+  }, [user])
 
   // Atualizar a função handleSignOut para garantir que ela funcione corretamente
   const handleSignOut = async () => {
@@ -40,14 +120,66 @@ export function Navbar() {
     }
   }
 
-  const handleNotificationClick = async (id: string, eventId?: string) => {
+  // Marcar uma notificação como lida
+  const markAsRead = async (id) => {
+    if (!user) return
+    
+    try {
+      const { error } = await supabase
+        .from("notifications")
+        .update({ read: true })
+        .eq("id", id)
+        .eq("user_id", user.id)
+
+      if (error) {
+        console.error("Erro ao marcar notificação como lida:", error)
+        return
+      }
+
+      // Atualizar localmente
+      setNotifications(prev => 
+        prev.map(n => n.id === id ? { ...n, read: true } : n)
+      )
+      setUnreadCount(prev => Math.max(0, prev - 1))
+    } catch (error) {
+      console.error("Erro ao marcar notificação como lida:", error)
+    }
+  }
+
+  // Marcar todas as notificações como lidas
+  const markAllAsRead = async () => {
+    if (!user) return
+    
+    try {
+      const { error } = await supabase
+        .from("notifications")
+        .update({ read: true })
+        .eq("user_id", user.id)
+        .eq("read", false)
+
+      if (error) {
+        console.error("Erro ao marcar todas as notificações como lidas:", error)
+        return
+      }
+
+      // Atualizar localmente
+      setNotifications(prev => 
+        prev.map(n => ({ ...n, read: true }))
+      )
+      setUnreadCount(0)
+    } catch (error) {
+      console.error("Erro ao marcar todas as notificações como lidas:", error)
+    }
+  }
+
+  const handleNotificationClick = async (id, eventId) => {
     await markAsRead(id)
     if (eventId) {
       router.push(`/dashboard/events/${eventId}`)
     }
   }
 
-  const formatCreatedAt = (date: string) => {
+  const formatCreatedAt = (date) => {
     try {
       return formatDistanceToNow(new Date(date), { 
         addSuffix: true,
@@ -58,7 +190,7 @@ export function Navbar() {
     }
   }
 
-  const getNotificationIcon = (type: string) => {
+  const getNotificationIcon = (type) => {
     switch (type) {
       case 'event_assignment':
         return <Calendar className="h-5 w-5 text-yellow-400" />
@@ -101,15 +233,19 @@ export function Navbar() {
           <Button
             variant="ghost"
             size="icon"
-            onClick={() => window.location.reload()}
+            onClick={fetchNotificationsDirectly}
             className="hover:text-yellow-400"
           >
             <RefreshCw className="h-5 w-5" />
-            <span className="sr-only">Atualizar página</span>
+            <span className="sr-only">Atualizar notificações</span>
           </Button>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="relative hover:text-yellow-400">
+              <Button 
+                variant={unreadCount > 0 ? "default" : "ghost"} 
+                size="icon" 
+                className={`relative ${unreadCount > 0 ? 'bg-yellow-500 hover:bg-yellow-600 text-black' : 'hover:text-yellow-400'} ${pulseAnimation ? 'animate-pulse' : ''}`}
+              >
                 <Bell className="h-5 w-5" />
                 <AnimatePresence>
                   {unreadCount > 0 && (
@@ -117,7 +253,7 @@ export function Navbar() {
                       initial={{ scale: 0 }}
                       animate={{ scale: 1 }}
                       exit={{ scale: 0 }}
-                      className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-xs font-bold"
+                      className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-xs font-bold text-white"
                     >
                       {unreadCount > 9 ? '9+' : unreadCount}
                     </motion.div>
@@ -132,7 +268,7 @@ export function Navbar() {
                   <Button 
                     variant="ghost" 
                     size="sm" 
-                    onClick={() => markAllAsRead()}
+                    onClick={markAllAsRead}
                     className="h-8 text-xs"
                   >
                     <CheckCheck className="mr-1 h-3 w-3" />

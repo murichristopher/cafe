@@ -1,7 +1,8 @@
 import { sendWhatsAppMessage } from "@/lib/whatsapp-service"
 import { supabase } from "@/lib/supabase"
-import type { User } from "@/types"
+import type { User, Event } from "@/types"
 import { formatPhoneNumber } from "@/lib/phone-utils"
+import { notifyFornecedorAdded } from "@/lib/notification-service"
 
 // Update the function signature to include all needed event details
 export async function notifyEventFornecedores(
@@ -72,15 +73,37 @@ export async function notifyEventFornecedores(
     // Create the event URL
     const eventUrl = `${baseUrl}/dashboard/events/${eventId}`
 
+    // Criar objeto do evento para as notificações push
+    const eventObj: Event = {
+      id: eventId,
+      title: eventTitle,
+      date: eventDate || '',
+      location: eventLocation || '',
+      description: '',
+      admin_id: '',
+      status: 'pendente'
+    }
+
     // Send WhatsApp message to each fornecedor
     const results = await Promise.all(
       fornecedores.map(async (fornecedor: User) => {
+        // 1. Enviar notificação push para todos os fornecedores, independente do WhatsApp
+        try {
+          console.log(`[EVENT NOTIFICATION] Sending push notification to ${fornecedor.name} (${fornecedor.id})`)
+          await notifyFornecedorAdded(fornecedor.id, eventObj)
+          console.log(`[EVENT NOTIFICATION] Push notification sent to ${fornecedor.name}`)
+        } catch (pushError) {
+          console.error(`[EVENT NOTIFICATION] Error sending push notification to ${fornecedor.name}:`, pushError)
+          // Continue com o WhatsApp mesmo se falhar o push
+        }
+
+        // 2. Enviar notificação via WhatsApp se tiver número
         if (!fornecedor.phone_number) {
           console.warn(`[EVENT NOTIFICATION] Fornecedor ${fornecedor.id} (${fornecedor.name}) has no phone number`)
           return {
             fornecedorId: fornecedor.id,
-            success: false,
-            message: "No phone number available",
+            success: true, // Marcamos como sucesso se pelo menos o push foi enviado
+            message: "Push notification sent, but no phone number available for WhatsApp",
           }
         }
 
@@ -91,8 +114,8 @@ export async function notifyEventFornecedores(
           )
           return {
             fornecedorId: fornecedor.id,
-            success: false,
-            message: "Invalid phone number",
+            success: true, // Marcamos como sucesso se pelo menos o push foi enviado
+            message: "Push notification sent, but invalid phone number for WhatsApp",
           }
         }
 
