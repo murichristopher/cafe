@@ -39,12 +39,16 @@ const formatTimeString = (timeString: string | null): string => {
   }
 }
 
+// Handler para a rota POST /api/events/[id]/notify
 export async function POST(
   request: Request, 
-  { params }: { params: { id: string } }
+  { params }: { params: { id: string } | Promise<{ id: string }> }
 ) {
+  // Garantir que params seja tratado como uma promessa
+  const resolvedParams = await params;
+  const eventId = resolvedParams.id;
+  
   try {
-    const eventId = params.id
     console.log(`[API] POST /api/events/${eventId}/notify - Starting supplier notification`)
 
     // Get fornecedor data from request body
