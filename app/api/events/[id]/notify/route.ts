@@ -39,7 +39,10 @@ const formatTimeString = (timeString: string | null): string => {
   }
 }
 
-export async function POST(request: Request, { params }: { params: { id: string } }) {
+export async function POST(
+  request: Request, 
+  { params }: { params: { id: string } }
+) {
   try {
     const eventId = params.id
     console.log(`[API] POST /api/events/${eventId}/notify - Starting supplier notification`)

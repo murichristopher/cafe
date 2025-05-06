@@ -49,6 +49,18 @@ export type EventWithAdmin = Event & {
   admin: User
 }
 
+// Tipo para notificações
+export interface Notification {
+  id: string;
+  user_id: string;
+  title: string;
+  message: string;
+  event_id?: string;
+  read: boolean;
+  type: 'event_assignment' | 'reminder' | 'update' | 'system';
+  created_at: string;
+}
+
 // Adicionar interface Database para o Supabase
 export interface Database {
   public: {
@@ -60,13 +72,33 @@ export interface Database {
       }
       events: {
         Row: Event
-        Insert: Omit<Event, "id" | "created_at"> & { id?: string; created_at?: string }
+        Insert: Omit<Event, "id"> & { id?: string }
         Update: Partial<Event>
       }
       event_fornecedores: {
-        Row: EventFornecedor
-        Insert: Omit<EventFornecedor, "id" | "created_at"> & { id?: string; created_at?: string }
-        Update: Partial<EventFornecedor>
+        Row: {
+          id: string
+          event_id: string
+          fornecedor_id: string
+          created_at?: string
+        }
+        Insert: Omit<{
+          id: string
+          event_id: string
+          fornecedor_id: string
+          created_at?: string
+        }, "id"> & { id?: string }
+        Update: Partial<{
+          id: string
+          event_id: string
+          fornecedor_id: string
+          created_at?: string
+        }>
+      }
+      notifications: {
+        Row: Notification
+        Insert: Omit<Notification, "id"> & { id?: string }
+        Update: Partial<Notification>
       }
     }
     Functions: {
