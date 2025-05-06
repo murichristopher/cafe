@@ -237,20 +237,57 @@ async function sendPushNotification(
   try {
     console.log(`[PUSH] Enviando notificação push: ${title}`)
     
-    await fetch('/api/push', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        subscription,
+    // Verificar se a subscription é válida
+    if (!subscription || !subscription.endpoint) {
+      console.error('[PUSH] Subscription inválida:', subscription)
+      throw new Error('Subscription inválida ou incompleta')
+    }
+    
+    // Se estiver rodando no servidor, usar web-push diretamente
+    if (typeof window === 'undefined') {
+      console.log('[PUSH] Executando no servidor, usando web-push diretamente')
+      const webpush = require('web-push')
+      
+      // Configurar VAPID keys
+      webpush.setVapidDetails(
+        process.env.VAPID_SUBJECT || 'mailto:example@yourdomain.org',
+        process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || '',
+        process.env.VAPID_PRIVATE_KEY || ''
+      )
+      
+      const payload = JSON.stringify({
         title,
         message,
-        data,
-      }),
-    });
-    
-    console.log(`[PUSH] Notificação push enviada com sucesso: ${title}`)
+        data: data || {}
+      })
+      
+      // Enviar notificação diretamente
+      await webpush.sendNotification(subscription, payload)
+      console.log(`[PUSH] Notificação push enviada com sucesso via web-push: ${title}`)
+    } 
+    // Se estiver no cliente (browser), usar a API fetch
+    else {
+      console.log('[PUSH] Executando no cliente, usando fetch para API')
+      const response = await fetch('/api/push', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          subscription,
+          title,
+          message,
+          data,
+        }),
+      })
+      
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Erro ao enviar notificação push')
+      }
+      
+      console.log(`[PUSH] Notificação push enviada com sucesso via API: ${title}`)
+    }
   } catch (error) {
     console.error('[PUSH] Erro ao enviar notificação push:', error)
     throw error
