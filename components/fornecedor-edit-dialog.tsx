@@ -150,7 +150,7 @@ export function FornecedorEditDialog({ fornecedor, onFornecedorUpdated }: Fornec
         toast({
           title: "Atualização parcial",
           description: result.passwordMessage || "Os dados do fornecedor foram atualizados, mas ocorreu um erro ao atualizar a senha.",
-          variant: "warning",
+          variant: "default",
         })
       } else {
         toast({
