@@ -418,7 +418,7 @@ export default function EventDetailsPage({ params }: { params: { id: string } })
                 </TabsTrigger>
               </TabsList>
               <TabsContent value="detalhes">
-                <EventDetails event={event} fornecedores={fornecedores} isFornecedor={isFornecedor} />
+                <EventDetails event={event} fornecedores={fornecedores} isFornecedor={isFornecedor} user={user} />
 
                 {/* Botões de ação baseados no status e papel do usuário */}
                 <div className="mt-6 flex flex-col gap-4">
@@ -495,7 +495,7 @@ export default function EventDetailsPage({ params }: { params: { id: string } })
             </Tabs>
           ) : (
             <CardContent className="space-y-6">
-              <EventDetails event={event} fornecedores={fornecedores} isFornecedor={isFornecedor} />
+              <EventDetails event={event} fornecedores={fornecedores} isFornecedor={isFornecedor} user={user} />
 
               {/* Botão de aprovação para admin quando o evento está aguardando aprovação */}
               {isAdmin && event.status === "aguardando_aprovacao" && (
@@ -595,7 +595,14 @@ function EventDetails({
   event,
   fornecedores,
   isFornecedor,
-}: { event: EventWithFornecedores; fornecedores: User[]; isFornecedor: boolean }) {
+  user,
+}: {
+  event: EventWithFornecedores
+  fornecedores: User[]
+  isFornecedor: boolean
+  user: User | null
+}) {
+  const isAdmin = user?.role === "admin"
   return (
     <div className="space-y-6">
       <div className="space-y-4">
@@ -627,14 +634,14 @@ function EventDetails({
           </div>
         )}
 
-        {event.valor !== null && event.valor !== undefined && (
+        {isAdmin && event.valor !== null && event.valor !== undefined && (
           <div className="flex items-center text-muted-foreground">
             <DollarSign className="mr-2 h-5 w-5 text-yellow-500" />
             Valor: R$ {event.valor.toFixed(2)}
           </div>
         )}
 
-        {event.valor_de_custo !== null && event.valor_de_custo !== undefined && (
+        {isAdmin && event.valor_de_custo !== null && event.valor_de_custo !== undefined && (
           <div className="flex items-center text-muted-foreground">
             <DollarSign className="mr-2 h-5 w-5 text-yellow-500" />
             Valor de Custo: R$ {event.valor_de_custo.toFixed(2)}
