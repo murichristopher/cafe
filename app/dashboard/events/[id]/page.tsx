@@ -126,6 +126,29 @@ export default function EventDetailsPage({ params }: { params: { id: string } })
     fetchEvent()
   }, [eventId])
 
+  useEffect(() => {
+    if (isLoading || !event || !user) return
+
+    // Admin pode ver tudo
+    if (user.role === "admin") {
+      return
+    }
+
+    // Se for fornecedor, verificar se está no evento
+    if (user.role === "fornecedor") {
+      const isAssociated = event.fornecedores?.some((f) => f.id === user.id)
+
+      if (!isAssociated) {
+        toast({
+          title: "Acesso Negado",
+          description: "Você não tem permissão para visualizar os detalhes deste evento.",
+          variant: "destructive",
+        })
+        router.push("/dashboard/events")
+      }
+    }
+  }, [event, user, isLoading, router, toast])
+
   const deleteEvent = async () => {
     if (!event) return
 
@@ -580,14 +603,14 @@ function EventDetails({
           <Calendar className="mr-2 h-5 w-5 text-yellow-500" />
           {format(new Date(event.date), "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
         </div>
-        
+
         {event.data_termino && (
           <div className="flex items-center text-muted-foreground">
             <Calendar className="mr-2 h-5 w-5 text-yellow-500" />
             Data de Término: {format(new Date(event.data_termino), "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
           </div>
         )}
-        
+
         <div className="flex items-center text-muted-foreground">
           <Clock className="mr-2 h-5 w-5 text-yellow-500" />
           {format(new Date(event.date), "HH:mm", { locale: ptBR })}
@@ -610,7 +633,7 @@ function EventDetails({
             Valor: R$ {event.valor.toFixed(2)}
           </div>
         )}
-        
+
         {event.valor_de_custo !== null && event.valor_de_custo !== undefined && (
           <div className="flex items-center text-muted-foreground">
             <DollarSign className="mr-2 h-5 w-5 text-yellow-500" />
