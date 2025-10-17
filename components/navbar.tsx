@@ -93,7 +93,16 @@ export function Navbar() {
   const getNotificationIcon = (type?: string) => {
     switch (type) {
       case 'event_assignment':
-        return <Calendar className="h-5 w-5 text-yellow-400" />
+        // Use app logo for supplier-assigned notifications
+        return (
+          <Image
+            src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/image-nklcjetorMW8G4rLEz3oeIycg3uHlQ.png"
+            alt="Eleve"
+            width={20}
+            height={20}
+            className="rounded-full"
+          />
+        )
       case 'reminder':
         return <Clock className="h-5 w-5 text-blue-400" />
       case 'update':

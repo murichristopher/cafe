@@ -77,6 +77,11 @@ export function SidebarContent() {
           </SidebarLink>
         )}
         {isAdmin && (
+          <SidebarLink href="/dashboard/kanban" icon={<MessageSquare className="h-5 w-5" />}>
+            Kanban
+          </SidebarLink>
+        )}
+        {isAdmin && (
           <SidebarLink href="/dashboard/whatsapp" icon={<MessageSquare className="h-5 w-5" />}>
             Integração com WhatsApp
           </SidebarLink>
