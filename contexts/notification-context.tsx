@@ -5,6 +5,7 @@ import {
   useContext,
   useEffect,
   useState,
+  useRef,
   ReactNode
 } from "react"
 import { useAuth } from "./auth-context"
@@ -27,6 +28,9 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [unreadCount, setUnreadCount] = useState(0)
   const [loading, setLoading] = useState(true)
+  const isFetchingRef = useRef(false)
+  const lastFetchRef = useRef<number>(0)
+  const subscriptionRef = useRef<any | null>(null)
 
   // Buscar notificações do usuário
   const fetchNotifications = async () => {
@@ -37,8 +41,16 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
       return
     }
 
+    // prevent frequent fetches (debounce) and concurrent fetches
+    const now = Date.now()
+    if (isFetchingRef.current) return
+    if (now - lastFetchRef.current < 3000) return
+
+    isFetchingRef.current = true
+    lastFetchRef.current = now
+    setLoading(true)
+
     try {
-      setLoading(true)
       const { data, error } = await supabase
         .from("notifications")
         .select("*")
@@ -47,15 +59,16 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
         .limit(50)
 
       if (error) {
-        console.error("Erro ao buscar notificações:", error)
+        console.warn("Erro ao buscar notificações:", error)
         return
       }
 
       setNotifications(data as Notification[])
-      setUnreadCount(data?.filter(n => !n.read).length || 0)
+      setUnreadCount((data as Notification[])?.filter((n) => !n.read).length || 0)
     } catch (error) {
       console.error("Erro ao buscar notificações:", error)
     } finally {
+      isFetchingRef.current = false
       setLoading(false)
     }
   }
@@ -66,7 +79,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
 
     fetchNotifications()
 
-    // Configurar canal em tempo real para receber notificações
+    // Configurar canal em tempo real para receber notificações (handler leve)
     const channel = supabase
       .channel(`notifications:${user.id}`)
       .on(
@@ -78,14 +91,28 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
           filter: `user_id=eq.${user.id}`
         },
         (payload) => {
-          console.log("Notification change:", payload)
-          fetchNotifications() // Recarregar notificações quando houver mudanças
+          console.debug("Notification change (light handler):", payload)
+          // schedule a fetch but respect debounce/concurrency
+          setTimeout(() => {
+            try {
+              fetchNotifications()
+            } catch (e) {
+              console.debug('fetchNotifications scheduled error:', e)
+            }
+          }, 50)
         }
       )
       .subscribe()
 
+    subscriptionRef.current = channel
+
     return () => {
-      supabase.removeChannel(channel)
+      try {
+        if (subscriptionRef.current) supabase.removeChannel(subscriptionRef.current)
+      } catch (e) {
+        console.debug('Erro ao remover canal de notificações (ignorado):', e)
+      }
+      subscriptionRef.current = null
     }
   }, [user])
 

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"
 import { motion } from "framer-motion"
 import { Plus, Download, FileSpreadsheet, Loader2, Trash2, Grid, List, Eye, Edit } from "lucide-react"
@@ -50,21 +50,32 @@ export default function EventsPage() {
     fornecedor: "",
     pagamento: "",
   })
+  const isFetchingRef = useRef(false)
 
   // Função para tentar carregar eventos com timeout e retries
   const loadEvents = async (retry = 0) => {
+    // Prevent concurrent loads
+    if (isFetchingRef.current) {
+      console.log("loadEvents: fetch already in progress, skipping")
+      return
+    }
+    isFetchingRef.current = true
     setIsLoading(true)
     setHasError(false)
     
     try {
       console.log(`Iniciando carregamento de eventos (tentativa ${retry + 1}/3)`)
       // Definir um tempo limite para a operação (8 segundos)
-      const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error("Timeout ao carregar eventos")), 8000)
+      // O timeout resolve um sentinel em vez de rejeitar para evitar erros não tratados
+      const timeoutPromise = new Promise((resolve) => {
+        setTimeout(() => resolve({ __timeout: true }), 8000)
       })
-      
-      // Executar a busca com limite de tempo
-      await Promise.race([fetchEvents(), timeoutPromise])
+
+      // Executar a busca com limite de tempo e tratar sentinel
+      const result = await Promise.race([fetchEvents(), timeoutPromise])
+      if (result && (result as any).__timeout) {
+        throw new Error("Timeout ao carregar eventos")
+      }
       console.log("Eventos carregados com sucesso")
     } catch (error) {
       console.error(`Erro ao carregar eventos (tentativa ${retry + 1}/3):`, error)
@@ -97,6 +108,7 @@ export default function EventsPage() {
       }
     } finally {
       setIsLoading(false)
+      isFetchingRef.current = false
     }
   }
 
@@ -108,7 +120,7 @@ export default function EventsPage() {
         return;
       }
 
-      // Se for fornecedor, primeira buscar todos os eventos e depois filtrar pelo nome
+  // Se for fornecedor, primeira buscar todos os eventos e depois filtrar pelo nome
       if (user?.role === "fornecedor") {
         if (!user.name) {
           console.error("Nome do fornecedor não disponível, não é possível filtrar");
@@ -142,21 +154,21 @@ export default function EventsPage() {
           console.error("Erro ao buscar eventos relacionados:", errorRelacionados);
         }
         
-        // Juntar os IDs e remover duplicatas
-        let eventIds: string[] = [];
+  // Juntar os IDs e remover duplicatas
+  let eventIdsList: string[] = [];
         
         if (eventsPrincipal && eventsPrincipal.length > 0) {
-          eventIds = [...eventsPrincipal.map(e => e.id)];
-          console.log(`Encontrados ${eventIds.length} eventos como fornecedor principal`);
+          eventIdsList = [...eventsPrincipal.map((e) => e.id)];
+          console.log(`Encontrados ${eventIdsList.length} eventos como fornecedor principal`);
         }
-        
+
         if (eventsRelacionados && eventsRelacionados.length > 0) {
-          eventIds = [...eventIds, ...eventsRelacionados.map(e => e.event_id)];
-          console.log(`Total após adicionar eventos relacionados: ${eventIds.length}`);
+          eventIdsList = [...eventIdsList, ...eventsRelacionados.map((e) => e.event_id)];
+          console.log(`Total após adicionar eventos relacionados: ${eventIdsList.length}`);
         }
-        
+
         // Remover duplicatas
-        const uniqueEventIds = [...new Set(eventIds)];
+        const uniqueEventIds = [...new Set(eventIdsList)];
         console.log(`IDs únicos após remover duplicatas: ${uniqueEventIds.length}`);
         
         if (uniqueEventIds.length === 0) {
@@ -214,64 +226,61 @@ export default function EventsPage() {
         
         console.log(`Eventos encontrados após aplicar filtros: ${filteredEvents?.length || 0}`);
         
-        // Agora buscar os detalhes dos fornecedores para cada evento
-        const eventsWithFornecedores = await Promise.all(
-          (filteredEvents || []).map(async (event) => {
-            // Buscar fornecedor principal
-            let fornecedorPrincipal: User | null = null;
-            if (event.fornecedor_id) {
-              const { data: fornecedorData, error: fornecedorError } = await supabase
-                .from("users")
-                .select("*")
-                .eq("id", event.fornecedor_id)
-                .single();
-                
-              if (!fornecedorError && fornecedorData) {
-                fornecedorPrincipal = fornecedorData;
-              }
-            }
-            
-            // Buscar fornecedores associados
-            const { data: eventFornecedores, error: fornecedoresError } = await supabase
-              .from("event_fornecedores")
-              .select("fornecedor_id")
-              .eq("event_id", event.id);
-              
-            if (fornecedoresError) {
-              console.error("Erro ao buscar fornecedores do evento:", fornecedoresError);
-              return { ...event, fornecedores: fornecedorPrincipal ? [fornecedorPrincipal] : [] };
-            }
-            
-            // Se tem fornecedores associados, buscar detalhes
-            let fornecedoresList: User[] = [];
-            if (eventFornecedores && eventFornecedores.length > 0) {
-              const fornecedorIds = eventFornecedores.map((ef) => ef.fornecedor_id);
-              
-              const { data: fornecedoresData, error: fornecedoresDataError } = await supabase
-                .from("users")
-                .select("*")
-                .in("id", fornecedorIds);
-                
-              if (!fornecedoresDataError && fornecedoresData) {
-                fornecedoresList = fornecedoresData;
-              }
-            }
-            
-            // Juntar fornecedor principal e associados
-            const allFornecedores = fornecedorPrincipal 
-              ? [...fornecedoresList, fornecedorPrincipal] 
-              : fornecedoresList;
-            
-            // Remover duplicatas por ID
-            const uniqueFornecedores = Array.from(
-              new Map(allFornecedores.map(item => [item.id, item])).values()
-            );
-            
-            return { ...event, fornecedores: uniqueFornecedores };
+        // Agora buscar os detalhes dos fornecedores para todos os eventos em lote
+  const eventIdsForFiltered = (filteredEvents || []).map((e) => e.id)
+
+        // Buscar todas as relações event_fornecedores de uma vez
+        const { data: allEventFornecedores } = await supabase
+          .from("event_fornecedores")
+          .select("event_id, fornecedor_id")
+          .in("event_id", eventIdsForFiltered)
+
+        // Mapear event_id -> fornecedor_ids[]
+        const mapping = new Map<string, Set<string>>()
+        if (allEventFornecedores) {
+          allEventFornecedores.forEach((row: any) => {
+            if (!mapping.has(row.event_id)) mapping.set(row.event_id, new Set())
+            mapping.get(row.event_id)!.add(row.fornecedor_id)
           })
-        );
-        
-        setEvents(eventsWithFornecedores as EventWithFornecedores[]);
+        }
+
+        // Coletar todos os fornecedor ids únicos (incluindo fornecedor_id direto nos eventos)
+        const fornecedorIdSet = new Set<string>()
+        ;(filteredEvents || []).forEach((ev: any) => {
+          if (ev.fornecedor_id) fornecedorIdSet.add(ev.fornecedor_id)
+          const s = mapping.get(ev.id)
+          if (s) s.forEach((id) => fornecedorIdSet.add(id))
+        })
+
+        const fornecedorIds = Array.from(fornecedorIdSet)
+
+        let fornecedoresData: any[] = []
+        if (fornecedorIds.length > 0) {
+          const { data: fetchedFornecedores, error: fornecedoresDataError } = await supabase
+            .from("users")
+            .select("*")
+            .in("id", fornecedorIds)
+
+          if (!fornecedoresDataError && fetchedFornecedores) {
+            fornecedoresData = fetchedFornecedores
+          }
+        }
+
+        // Construir mapa id->user
+        const fornecedorById = new Map<string, any>()
+        fornecedoresData.forEach((f) => fornecedorById.set(f.id, f))
+
+        // Montar eventos finais com lista de fornecedores
+        const eventsWithFornecedores = (filteredEvents || []).map((event: any) => {
+          const setIds = mapping.get(event.id) || new Set<string>()
+          const ids = Array.from(setIds)
+          if (event.fornecedor_id) ids.push(event.fornecedor_id)
+          const uniqueIds = Array.from(new Set(ids))
+          const fornecedores = uniqueIds.map((id) => fornecedorById.get(id)).filter(Boolean)
+          return { ...event, fornecedores }
+        })
+
+        setEvents(eventsWithFornecedores as EventWithFornecedores[])
         
         // Salvar no localStorage para cache com chave específica por usuário
         const cacheKey = `cached_events_${user?.id || 'guest'}`;
@@ -283,7 +292,7 @@ export default function EventsPage() {
         return;
       }
       
-      // Para administradores, continuar com a lógica original
+  // Para administradores, continuar com a lógica original
       // Construir a consulta base
       let query = supabase.from("events").select("*")
       
@@ -354,53 +363,55 @@ export default function EventsPage() {
         return
       }
 
-      // Para cada evento, buscar os fornecedores associados
-      const eventsWithFornecedores = await Promise.all(
-        data.map(async (event) => {
-          // Buscar os fornecedores associados ao evento
-          const { data: eventFornecedores, error: fornecedoresError } = await supabase
-            .from("event_fornecedores")
-            .select("fornecedor_id")
-            .eq("event_id", event.id)
+      // Para reduzir round-trips, buscar todas as relações event_fornecedores e usuários em lote
+      const eventIds = (data || []).map((e: any) => e.id)
 
-          if (fornecedoresError) {
-            console.error("Erro ao buscar fornecedores do evento:", fornecedoresError)
-            return { ...event, fornecedores: [] }
-          }
+      // Buscar todas as relações de uma vez
+      const { data: allEventFornecedores } = await supabase
+        .from("event_fornecedores")
+        .select("event_id, fornecedor_id")
+        .in("event_id", eventIds)
 
-          // Se temos fornecedores associados, buscar seus detalhes
-          let fornecedoresList: User[] = []
-          if (eventFornecedores && eventFornecedores.length > 0) {
-            const fornecedorIds = eventFornecedores.map((ef) => ef.fornecedor_id)
+      const mapping = new Map<string, Set<string>>()
+      if (allEventFornecedores) {
+        allEventFornecedores.forEach((row: any) => {
+          if (!mapping.has(row.event_id)) mapping.set(row.event_id, new Set())
+          mapping.get(row.event_id)!.add(row.fornecedor_id)
+        })
+      }
 
-            const { data: fornecedoresData, error: fornecedoresDataError } = await supabase
-              .from("users")
-              .select("*")
-              .in("id", fornecedorIds)
+      const fornecedorIdSet = new Set<string>()
+      ;(data || []).forEach((ev: any) => {
+        if (ev.fornecedor_id) fornecedorIdSet.add(ev.fornecedor_id)
+        const s = mapping.get(ev.id)
+        if (s) s.forEach((id) => fornecedorIdSet.add(id))
+      })
 
-            if (fornecedoresDataError) {
-              console.error("Erro ao buscar detalhes dos fornecedores:", fornecedoresDataError)
-            } else {
-              fornecedoresList = fornecedoresData as User[]
-            }
-          }
+      const fornecedorIds = Array.from(fornecedorIdSet)
 
-          // Se não temos fornecedores na tabela de relacionamento mas temos um fornecedor_id, usar esse
-          if (fornecedoresList.length === 0 && event.fornecedor_id) {
-            const { data: fornecedorData, error: fornecedorError } = await supabase
-              .from("users")
-              .select("*")
-              .eq("id", event.fornecedor_id)
-              .single()
+      let fornecedoresData: any[] = []
+      if (fornecedorIds.length > 0) {
+        const { data: fetchedFornecedores, error: fornecedoresDataError } = await supabase
+          .from("users")
+          .select("*")
+          .in("id", fornecedorIds)
 
-            if (!fornecedorError && fornecedorData) {
-              fornecedoresList = [fornecedorData]
-            }
-          }
+        if (!fornecedoresDataError && fetchedFornecedores) {
+          fornecedoresData = fetchedFornecedores
+        }
+      }
 
-          return { ...event, fornecedores: fornecedoresList }
-        }),
-      )
+      const fornecedorById = new Map<string, any>()
+      fornecedoresData.forEach((f) => fornecedorById.set(f.id, f))
+
+      const eventsWithFornecedores = (data || []).map((event: any) => {
+        const setIds = mapping.get(event.id) || new Set<string>()
+        const ids = Array.from(setIds)
+        if (event.fornecedor_id) ids.push(event.fornecedor_id)
+        const uniqueIds = Array.from(new Set(ids))
+        const fornecedores = uniqueIds.map((id) => fornecedorById.get(id)).filter(Boolean)
+        return { ...event, fornecedores }
+      })
 
       setEvents(eventsWithFornecedores as EventWithFornecedores[])
       

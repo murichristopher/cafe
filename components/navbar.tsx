@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { motion, AnimatePresence } from "framer-motion"
@@ -22,7 +22,7 @@ import Image from "next/image"
 import { format, formatDistanceToNow } from "date-fns"
 import { ptBR } from "date-fns/locale"
 import { Skeleton } from "@/components/ui/skeleton"
-import { supabase } from "@/lib/supabase"
+// notifications handled by NotificationProvider
 
 export function Navbar() {
   const { signOut, user } = useAuth()
@@ -30,84 +30,30 @@ export function Navbar() {
   const [isOpen, setIsOpen] = useState(false)
   const router = useRouter()
 
-  // Estados locais para notificações (implementação direta)
-  const [notifications, setNotifications] = useState([])
-  const [unreadCount, setUnreadCount] = useState(0)
-  const [loading, setLoading] = useState(true)
-  const [pulseAnimation, setPulseAnimation] = useState(false)
+  const { notifications, unreadCount, loading, fetchNotifications, markAsRead, markAllAsRead } =
+    notificationsContext
 
-  // Buscar notificações diretamente do banco
-  const fetchNotificationsDirectly = async () => {
-    if (!user) return
-    
-    try {
-      setLoading(true)
-      console.log("Buscando notificações diretamente...")
-      
-      const { data, error } = await supabase
-        .from("notifications")
-        .select("*")
-        .eq("user_id", user.id)
-        .order("created_at", { ascending: false })
-        .limit(50)
+  const [pulseAnimation, setPulseAnimation] = useState<boolean>(false)
+  const isMountedRef = useRef(true)
 
-      if (error) {
-        console.error("Erro ao buscar notificações diretas:", error)
-        return
-      }
-
-      console.log(`Encontradas ${data.length} notificações diretas`)
-      setNotifications(data || [])
-      
-      const newUnreadCount = data?.filter(n => !n.read).length || 0
-      
-      // Se chegou uma nova notificação não lida, ativar animação
-      if (newUnreadCount > unreadCount) {
-        setPulseAnimation(true)
-        setTimeout(() => setPulseAnimation(false), 3000)
-      }
-      
-      setUnreadCount(newUnreadCount)
-    } catch (error) {
-      console.error("Erro ao buscar notificações diretas:", error)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  // Efeito para buscar notificações periodicamente
+  // Trigger pulse animation when unreadCount increases
+  const prevUnreadRef = useRef<number>(unreadCount)
   useEffect(() => {
-    if (!user) return
-
-    // Buscar notificações imediatamente
-    fetchNotificationsDirectly()
-
-    // Configurar intervalo para buscar notificações a cada 10 segundos
-    const interval = setInterval(fetchNotificationsDirectly, 10000)
-
-    // Configurar canal em tempo real para receber notificações
-    const channel = supabase
-      .channel(`notifications:${user.id}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "notifications",
-          filter: `user_id=eq.${user.id}`
-        },
-        (payload) => {
-          console.log("Mudança na notificação detectada:", payload)
-          fetchNotificationsDirectly()
-        }
-      )
-      .subscribe()
-
-    return () => {
-      clearInterval(interval)
-      supabase.removeChannel(channel)
+    if (unreadCount > prevUnreadRef.current) {
+      setPulseAnimation(true)
+      const t = setTimeout(() => {
+        if (isMountedRef.current) setPulseAnimation(false)
+      }, 3000)
+      return () => clearTimeout(t)
     }
-  }, [user])
+    prevUnreadRef.current = unreadCount
+  }, [unreadCount])
+
+  useEffect(() => {
+    return () => {
+      isMountedRef.current = false
+    }
+  }, [])
 
   // Atualizar a função handleSignOut para garantir que ela funcione corretamente
   const handleSignOut = async () => {
@@ -121,67 +67,21 @@ export function Navbar() {
   }
 
   // Marcar uma notificação como lida
-  const markAsRead = async (id) => {
-    if (!user) return
-    
-    try {
-      const { error } = await supabase
-        .from("notifications")
-        .update({ read: true })
-        .eq("id", id)
-        .eq("user_id", user.id)
-
-      if (error) {
-        console.error("Erro ao marcar notificação como lida:", error)
-        return
-      }
-
-      // Atualizar localmente
-      setNotifications(prev => 
-        prev.map(n => n.id === id ? { ...n, read: true } : n)
-      )
-      setUnreadCount(prev => Math.max(0, prev - 1))
-    } catch (error) {
-      console.error("Erro ao marcar notificação como lida:", error)
-    }
-  }
+  // markAsRead provided by NotificationProvider
 
   // Marcar todas as notificações como lidas
-  const markAllAsRead = async () => {
-    if (!user) return
-    
-    try {
-      const { error } = await supabase
-        .from("notifications")
-        .update({ read: true })
-        .eq("user_id", user.id)
-        .eq("read", false)
+  // markAllAsRead provided by NotificationProvider
 
-      if (error) {
-        console.error("Erro ao marcar todas as notificações como lidas:", error)
-        return
-      }
-
-      // Atualizar localmente
-      setNotifications(prev => 
-        prev.map(n => ({ ...n, read: true }))
-      )
-      setUnreadCount(0)
-    } catch (error) {
-      console.error("Erro ao marcar todas as notificações como lidas:", error)
-    }
-  }
-
-  const handleNotificationClick = async (id, eventId) => {
+  const handleNotificationClick = async (id: string, eventId?: string) => {
     await markAsRead(id)
     if (eventId) {
       router.push(`/dashboard/events/${eventId}`)
     }
   }
 
-  const formatCreatedAt = (date) => {
+  const formatCreatedAt = (date?: string) => {
     try {
-      return formatDistanceToNow(new Date(date), { 
+      return formatDistanceToNow(new Date(date || Date.now()), { 
         addSuffix: true,
         locale: ptBR 
       })
@@ -190,7 +90,7 @@ export function Navbar() {
     }
   }
 
-  const getNotificationIcon = (type) => {
+  const getNotificationIcon = (type?: string) => {
     switch (type) {
       case 'event_assignment':
         return <Calendar className="h-5 w-5 text-yellow-400" />
@@ -233,7 +133,7 @@ export function Navbar() {
           <Button
             variant="ghost"
             size="icon"
-            onClick={fetchNotificationsDirectly}
+            onClick={() => fetchNotifications()}
             className="hover:text-yellow-400"
           >
             <RefreshCw className="h-5 w-5" />

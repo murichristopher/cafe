@@ -21,8 +21,8 @@ interface EventFiltersProps {
     startDate: string
     endDate: string
     search: string
-    fornecedor?: string
-    pagamento?: string
+    fornecedor: string
+    pagamento: string
   }
   setFilters: React.Dispatch<
     React.SetStateAction<{
@@ -30,8 +30,8 @@ interface EventFiltersProps {
       startDate: string
       endDate: string
       search: string
-      fornecedor?: string
-      pagamento?: string
+      fornecedor: string
+      pagamento: string
     }>
   >
   showFornecedorFilter?: boolean

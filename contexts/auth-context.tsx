@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { createContext, useContext, useEffect, useState, useCallback } from "react"
+import { createContext, useContext, useEffect, useState, useCallback, useRef } from "react"
 import { supabase } from "@/lib/supabase"
 import type { User } from "@/types"
 
@@ -32,6 +32,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
   const [needsPhoneNumber, setNeedsPhoneNumber] = useState(false)
+  const isAuthUpdatingRef = useRef(false)
+  const authSubscriptionRef = useRef<any | null>(null)
   
   // Função para salvar usuário no cache
   const cacheUser = useCallback((userData: User | null) => {
@@ -71,6 +73,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // Função para atualizar os dados do usuário
   const updateUserData = useCallback(async (useCache = false) => {
+    // Prevent re-entrant runs
+    if (isAuthUpdatingRef.current) {
+      console.debug("updateUserData: already running, skipping")
+      return false
+    }
+    isAuthUpdatingRef.current = true
     // Se devemos usar cache e temos um usuário em cache, usamos ele primeiro
     if (useCache) {
       const cachedUser = getCachedUser()
@@ -88,18 +96,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     }
     
-    try {
+  try {
       // Tentativa com timeout para evitar espera infinita
       const sessionPromise = supabase.auth.getSession()
-      const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error("Timeout ao recuperar sessão")), 5000)
+      // Timeout resolves a sentinel object instead of rejecting to avoid noisy exceptions
+      const timeoutPromise = new Promise((resolve) => {
+        setTimeout(() => resolve({ __timeout: true }), 5000)
       })
-      
+
       // Usa race para limitar o tempo de espera
-      const { data: { session } } = await Promise.race([
-        sessionPromise,
-        timeoutPromise
-      ]) as any
+      const raceResult = (await Promise.race([sessionPromise, timeoutPromise])) as any
+      let session = null
+      if (raceResult && raceResult.__timeout) {
+        console.warn("Timeout ao recuperar sessão: usando fallback (cache/anon)")
+        session = null
+      } else {
+        session = raceResult?.data?.session
+      }
       
       if (!session) {
         setUser(null)
@@ -180,6 +193,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return false
     } finally {
       setLoading(false)
+      isAuthUpdatingRef.current = false
     }
   }, [cacheUser, getCachedUser])
 
@@ -238,22 +252,34 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     checkAuth()
 
     // Configurar listener para mudanças de autenticação
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (event) => {
+    const { data } = supabase.auth.onAuthStateChange((event) => {
+      // Keep the handler lightweight: clear cache on sign out, schedule an async update on sign in
       if (event === 'SIGNED_OUT') {
         cacheUser(null)
         setUser(null)
         setNeedsPhoneNumber(false)
       } else if (event === 'SIGNED_IN') {
-        await updateUserData(false)
+        // Schedule an async update to avoid potential synchronous re-entrancy/deadlocks
+        setTimeout(() => {
+          if (!isAuthUpdatingRef.current) {
+            updateUserData(false).catch((e) => console.warn('updateUserData error in onAuthStateChange:', e))
+          }
+        }, 50)
       }
     })
 
+    // store subscription ref so we can remove it reliably
+    authSubscriptionRef.current = data?.subscription ?? null
+
     return () => {
-      if (subscription) {
-        subscription.unsubscribe()
+      try {
+        if (authSubscriptionRef.current && typeof authSubscriptionRef.current.unsubscribe === 'function') {
+          authSubscriptionRef.current.unsubscribe()
+        }
+      } catch (e) {
+        console.debug('Error unsubscribing auth subscription (ignored):', e)
       }
+      authSubscriptionRef.current = null
     }
   }, [updateUserData, cacheUser])
 
