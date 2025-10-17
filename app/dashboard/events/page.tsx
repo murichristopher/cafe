@@ -42,14 +42,38 @@ export default function EventsPage() {
   const [isDeleting, setIsDeleting] = useState(false)
   const [hasError, setHasError] = useState(false)
   const [showCompleted, setShowCompleted] = useState(false)
-  const [filters, setFilters] = useState({
-    status: "",
-    startDate: "",
-    endDate: "",
-    search: "",
-    fornecedor: "",
-    pagamento: "",
-  })
+
+  // Initialize filters from URL query params or localStorage (per-user)
+  const getInitialFilters = () => {
+    try {
+      const urlParams = new URLSearchParams(typeof window !== "undefined" ? window.location.search : "")
+      const status = urlParams.get("status") || ""
+      const startDate = urlParams.get("startDate") || ""
+      const endDate = urlParams.get("endDate") || ""
+      const search = urlParams.get("search") || ""
+      const fornecedor = urlParams.get("fornecedor") || ""
+      const pagamento = urlParams.get("pagamento") || ""
+
+      // If any param present, prefer URL
+      const hasUrl = status || startDate || endDate || search || fornecedor || pagamento
+      if (hasUrl) {
+        return { status, startDate, endDate, search, fornecedor, pagamento }
+      }
+
+      // Fallback to localStorage per user
+      const cacheKey = `events_filters_${user?.id || "guest"}`
+      const stored = localStorage.getItem(cacheKey)
+      if (stored) {
+        return JSON.parse(stored)
+      }
+    } catch (e) {
+      console.warn("Erro ao obter filtros iniciais:", e)
+    }
+
+    return { status: "", startDate: "", endDate: "", search: "", fornecedor: "", pagamento: "" }
+  }
+
+  const [filters, setFilters] = useState(() => getInitialFilters())
   const isFetchingRef = useRef(false)
 
   // Função para tentar carregar eventos com timeout e retries
@@ -518,6 +542,73 @@ export default function EventsPage() {
     // Se não temos cache recente, carregamos normalmente
     loadEvents(0)
   }, [filters, showCompleted, user])
+
+
+  // Sync filters & showCompleted to URL and localStorage when they change
+  useEffect(() => {
+    try {
+      const qs = new URLSearchParams()
+      if (filters.status) qs.set("status", filters.status)
+      if (filters.startDate) qs.set("startDate", filters.startDate)
+      if (filters.endDate) qs.set("endDate", filters.endDate)
+      if (filters.search) qs.set("search", filters.search)
+      if (filters.fornecedor) qs.set("fornecedor", filters.fornecedor)
+      if (filters.pagamento) qs.set("pagamento", filters.pagamento)
+
+      // include showCompleted for completeness
+      if (showCompleted) qs.set("showCompleted", "1")
+
+      const newUrl = `${window.location.pathname}?${qs.toString()}`
+      // Use history API to avoid navigation
+      window.history.replaceState({}, "", qs.toString() ? newUrl : window.location.pathname)
+
+      // Persist to localStorage per user
+      const cacheKey = `events_filters_${user?.id || "guest"}`
+      localStorage.setItem(cacheKey, JSON.stringify(filters))
+      localStorage.setItem(`${cacheKey}_showCompleted`, showCompleted ? "1" : "0")
+      localStorage.setItem(`${cacheKey}_ts`, Date.now().toString())
+    } catch (e) {
+      console.warn("Erro ao sincronizar filtros:", e)
+    }
+  }, [filters, showCompleted, user?.id])
+
+  // Restore filters from URL/localStorage when navigating with back/forward
+  useEffect(() => {
+    const handlePop = () => {
+      try {
+        const urlParams = new URLSearchParams(window.location.search)
+        const status = urlParams.get("status") || ""
+        const startDate = urlParams.get("startDate") || ""
+        const endDate = urlParams.get("endDate") || ""
+        const search = urlParams.get("search") || ""
+        const fornecedor = urlParams.get("fornecedor") || ""
+        const pagamento = urlParams.get("pagamento") || ""
+        const show = urlParams.get("showCompleted") === "1"
+
+        // If url has any params, apply them
+        const hasUrl = status || startDate || endDate || search || fornecedor || pagamento || urlParams.has("showCompleted")
+        if (hasUrl) {
+          setFilters({ status, startDate, endDate, search, fornecedor, pagamento })
+          setShowCompleted(show)
+          return
+        }
+
+        // Otherwise try localStorage
+        const cacheKey = `events_filters_${user?.id || "guest"}`
+        const stored = localStorage.getItem(cacheKey)
+        const showStored = localStorage.getItem(`${cacheKey}_showCompleted`)
+        if (stored) {
+          setFilters(JSON.parse(stored))
+          setShowCompleted(showStored === "1")
+        }
+      } catch (e) {
+        console.warn("Erro ao restaurar filtros no popstate:", e)
+      }
+    }
+
+    window.addEventListener("popstate", handlePop)
+    return () => window.removeEventListener("popstate", handlePop)
+  }, [user?.id])
 
   // Effect para detectar quando o usuário volta à aba
   useEffect(() => {
