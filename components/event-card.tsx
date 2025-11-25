@@ -83,6 +83,12 @@ export function EventCard({ event, showActions = true }: EventCardProps) {
             <MapPinIcon className="h-4 w-4 mr-1" />
             {event.location}
           </div>
+          {event.cidade && (
+            <div className="flex items-center mt-1">
+              <MapPinIcon className="h-4 w-4 mr-1" />
+              {event.cidade}
+            </div>
+          )}
           {event.pax && (
             <div className="flex items-center mt-1">
               <UsersIcon className="h-4 w-4 mr-1" />

@@ -13,6 +13,7 @@ export type Event = {
   date: string
   data_termino?: string | null
   location: string
+  cidade?: string | null
   admin_id: string
   fornecedor_id: string | null
   status: "pendente" | "confirmado" | "cancelado" | "aguardando_aprovacao" | "concluido"

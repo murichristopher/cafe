@@ -23,10 +23,8 @@ import type { Option } from "@/components/ui/multi-select"
 import { notifyFornecedorChanges } from "@/lib/fornecedor-notification"
 import { ptBR } from "date-fns/locale"
 
-export default function EditEventPage({ params }: { params: { id: string } }) {
-  // Unwrap the params object using React.use()
-  const unwrappedParams = use(Promise.resolve(params))
-  const eventId = unwrappedParams.id
+export default function EditEventPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id: eventId } = use(params)
 
   const { user } = useAuth()
   const router = useRouter()
@@ -48,6 +46,7 @@ export default function EditEventPage({ params }: { params: { id: string } }) {
   const [startTime, setStartTime] = useState("")
   const [endTime, setEndTime] = useState("")
   const [location, setLocation] = useState("")
+  const [cidade, setCidade] = useState("")
   const [status, setStatus] = useState("pendente")
   const [valor, setValor] = useState("")
   const [valorDeCusto, setValorDeCusto] = useState("")
@@ -108,6 +107,7 @@ export default function EditEventPage({ params }: { params: { id: string } }) {
         setStartTime(formattedTime)
         setEndTime(eventData.horario_fim || "")
         setLocation(eventData.location)
+        setCidade(eventData.cidade || "")
         setStatus(eventData.status)
         setValor(eventData.valor ? eventData.valor.toString() : "")
         setValorDeCusto(eventData.valor_de_custo ? eventData.valor_de_custo.toString() : "")
@@ -238,6 +238,7 @@ export default function EditEventPage({ params }: { params: { id: string } }) {
         description,
         date: eventDate.toISOString(),
         location,
+        cidade: cidade || null,
         fornecedor_id: null, // Não usamos mais este campo diretamente
         status,
         valor: valor ? Number.parseFloat(valor) : null,
@@ -510,6 +511,21 @@ export default function EditEventPage({ params }: { params: { id: string } }) {
                     disabled={isLoading}
                   />
                 </div>
+              </div>
+
+              {/* Cidade */}
+              <div className="space-y-2">
+                <Label htmlFor="cidade" className="text-sm font-medium">
+                  Cidade
+                </Label>
+                <Input
+                  id="cidade"
+                  placeholder="Cidade do evento"
+                  className="w-full focus:ring-offset-2"
+                  value={cidade}
+                  onChange={(e) => setCidade(e.target.value)}
+                  disabled={isLoading}
+                />
               </div>
 
               {/* Número de Pessoas (PAX) */}

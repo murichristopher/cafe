@@ -34,10 +34,8 @@ import { EventImagesManagerV2 } from "@/components/event-images-manager-v2"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 
-export default function EventDetailsPage({ params }: { params: { id: string } }) {
-  // Unwrap the params object using React.use()
-  const unwrappedParams = use(Promise.resolve(params))
-  const eventId = unwrappedParams.id
+export default function EventDetailsPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id: eventId } = use(params)
 
   const { user } = useAuth()
   const { toast } = useToast()
@@ -627,6 +625,12 @@ function EventDetails({
           <MapPin className="mr-2 h-5 w-5 text-yellow-500" />
           {event.location}
         </div>
+        {event.cidade && (
+          <div className="flex items-center text-muted-foreground">
+            <MapPin className="mr-2 h-5 w-5 text-yellow-500" />
+            Cidade: {event.cidade}
+          </div>
+        )}
         {event.pax !== null && event.pax !== undefined && (
           <div className="flex items-center text-muted-foreground">
             <Users className="mr-2 h-5 w-5 text-yellow-500" />

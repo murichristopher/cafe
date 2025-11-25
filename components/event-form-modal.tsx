@@ -29,6 +29,7 @@ export function EventFormModal({ isOpen, onClose, onEventCreated }: EventFormMod
   const [date, setDate] = useState("")
   const [time, setTime] = useState("")
   const [location, setLocation] = useState("")
+  const [cidade, setCidade] = useState("")
   const [fornecedorId, setFornecedorId] = useState("")
   const [status, setStatus] = useState("pending")
   const [valor, setValor] = useState("")
@@ -90,6 +91,7 @@ export function EventFormModal({ isOpen, onClose, onEventCreated }: EventFormMod
             description,
             date: eventDate.toISOString(),
             location,
+            cidade: cidade || null,
             admin_id: user.id,
             fornecedor_id: fornecedorId || null,
             status,
@@ -120,6 +122,7 @@ export function EventFormModal({ isOpen, onClose, onEventCreated }: EventFormMod
       setDate("")
       setTime("")
       setLocation("")
+      setCidade("")
       setFornecedorId("")
       setStatus("pending")
       setValor("")
@@ -228,6 +231,16 @@ export function EventFormModal({ isOpen, onClose, onEventCreated }: EventFormMod
                   value={location}
                   onChange={(e) => setLocation(e.target.value)}
                   required
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="cidade">Cidade</Label>
+                <Input
+                  id="cidade"
+                  placeholder="Cidade do evento"
+                  value={cidade}
+                  onChange={(e) => setCidade(e.target.value)}
                 />
               </div>
 

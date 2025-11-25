@@ -47,6 +47,7 @@ export default function NewEventPage() {
   const [startTime, setStartTime] = useState("")
   const [endTime, setEndTime] = useState("")
   const [location, setLocation] = useState("")
+  const [cidade, setCidade] = useState("")
   const [status, setStatus] = useState("pendente")
   const [valor, setValor] = useState("")
   const [valorDeCusto, setValorDeCusto] = useState("")
@@ -204,6 +205,7 @@ export default function NewEventPage() {
         description,
         date: eventDate.toISOString(),
         location,
+        cidade: cidade || null,
         admin_id: user.id,
         fornecedor_id: null, // Não usamos mais este campo diretamente
         status,
@@ -515,6 +517,21 @@ export default function NewEventPage() {
                     disabled={isLoading}
                   />
                 </div>
+              </div>
+
+              {/* Cidade */}
+              <div className="space-y-2">
+                <Label htmlFor="cidade" className="text-sm font-medium">
+                  Cidade
+                </Label>
+                <Input
+                  id="cidade"
+                  placeholder="Cidade do evento"
+                  className="w-full focus:ring-offset-2"
+                  value={cidade}
+                  onChange={(e) => setCidade(e.target.value)}
+                  disabled={isLoading}
+                />
               </div>
 
               {/* Número de Pessoas (PAX) */}

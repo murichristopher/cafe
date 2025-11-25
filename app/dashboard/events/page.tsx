@@ -873,6 +873,7 @@ export default function EventsPage() {
                   <TableHead>Título</TableHead>
                   <TableHead>Data</TableHead>
                   <TableHead>Local</TableHead>
+                  <TableHead>Cidade</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Fornecedores</TableHead>
                   <TableHead className="text-right">Ações</TableHead>
@@ -891,6 +892,7 @@ export default function EventsPage() {
                         {formattedDate} às {formattedTime}
                       </TableCell>
                       <TableCell>{event.location}</TableCell>
+                      <TableCell>{event.cidade || "-"}</TableCell>
                       <TableCell>
                         <span className={getStatusColor(event.status)}>{getStatusText(event.status)}</span>
                       </TableCell>
