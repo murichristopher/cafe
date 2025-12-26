@@ -93,6 +93,22 @@ export type EstoqueMovimentacaoWithRelations = EstoqueMovimentacao & {
   responsavel?: User | null;
 }
 
+// Tipo para cardápios
+export type Cardapio = {
+  id: string;
+  data: string;
+  horario_inicio: string;
+  horario_fim: string;
+  quantidade_participantes: number;
+  salgados: string[];
+  doces: string[];
+  bebidas: Record<string, number>;
+  informacoes_adicionais?: string | null;
+  timestamp: string;
+  created_at: string;
+  updated_at: string;
+}
+
 // Adicionar interface Database para o Supabase
 export interface Database {
   public: {
@@ -141,6 +157,11 @@ export interface Database {
         Row: EstoqueMovimentacao
         Insert: Omit<EstoqueMovimentacao, "id" | "created_at"> & { id?: string; created_at?: string }
         Update: Partial<Omit<EstoqueMovimentacao, "id" | "created_at">>
+      }
+      cardapios: {
+        Row: Cardapio
+        Insert: Omit<Cardapio, "id" | "created_at" | "updated_at"> & { id?: string; created_at?: string; updated_at?: string }
+        Update: Partial<Omit<Cardapio, "id" | "created_at" | "updated_at">>
       }
     }
     Functions: {

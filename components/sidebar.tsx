@@ -5,7 +5,7 @@ import type React from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { motion } from "framer-motion"
-import { Calendar, Home, Settings, Users, MessageSquare, Package } from "lucide-react"
+import { Calendar, Home, Settings, Users, MessageSquare, Package, FileText } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import Image from "next/image"
@@ -79,6 +79,11 @@ export function SidebarContent() {
         {isAdmin && (
           <SidebarLink href="/dashboard/estoque" icon={<Package className="h-5 w-5" />}>
             Estoque
+          </SidebarLink>
+        )}
+        {isAdmin && (
+          <SidebarLink href="/dashboard/cardapios" icon={<FileText className="h-5 w-5" />}>
+            Cardápios
           </SidebarLink>
         )}
         {isAdmin && (
