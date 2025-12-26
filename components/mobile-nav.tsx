@@ -3,7 +3,7 @@
 import { usePathname } from "next/navigation"
 import Link from "next/link"
 // Importe o ícone MessageSquare do lucide-react
-import { Calendar, Home, MessageSquare, Settings, Users } from "lucide-react"
+import { Calendar, Home, MessageSquare, Settings, Users, Package } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useAuth } from "@/contexts/auth-context"
 
@@ -42,6 +42,17 @@ export function MobileNav() {
           },
         ]
       : []),
+    // Only show the "Estoque" tab to administrators
+    ...(isAdmin
+      ? [
+          {
+            href: "/dashboard/estoque",
+            icon: Package,
+            label: "Estoque",
+            active: pathname.startsWith("/dashboard/estoque"),
+          },
+        ]
+      : []),
     // Only show the "WhatsApp" tab to administrators
     ...(isAdmin
       ? [
@@ -63,7 +74,7 @@ export function MobileNav() {
 
   return (
     <div className="fixed bottom-0 left-0 z-50 w-full border-t border-zinc-800 bg-[#111111] md:hidden">
-      <div className={`grid h-16 ${isAdmin ? "grid-cols-5" : "grid-cols-3"} px-2`}>
+      <div className={`grid h-16 ${isAdmin ? "grid-cols-6" : "grid-cols-3"} px-2`}>
         {navItems.map((item) => (
           <Link
             key={item.href}

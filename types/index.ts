@@ -63,6 +63,36 @@ export interface Notification {
   created_at: string;
 }
 
+// Tipo para produtos
+export type Produto = {
+  id: string;
+  nome: string;
+  descricao?: string | null;
+  unidade_medida: string;
+  estoque_atual: number;
+  estoque_minimo?: number | null;
+  created_at: string;
+  updated_at: string;
+}
+
+// Tipo para movimentações de estoque
+export type EstoqueMovimentacao = {
+  id: string;
+  produto_id: string;
+  tipo: 'entrada' | 'saida';
+  quantidade: number;
+  data_movimentacao: string;
+  responsavel_id?: string | null;
+  observacoes?: string | null;
+  created_at: string;
+}
+
+// Tipo para movimentação com dados relacionados
+export type EstoqueMovimentacaoWithRelations = EstoqueMovimentacao & {
+  produto: Produto;
+  responsavel?: User | null;
+}
+
 // Adicionar interface Database para o Supabase
 export interface Database {
   public: {
@@ -101,6 +131,16 @@ export interface Database {
         Row: Notification
         Insert: Omit<Notification, "id"> & { id?: string }
         Update: Partial<Notification>
+      }
+      produtos: {
+        Row: Produto
+        Insert: Omit<Produto, "id" | "created_at" | "updated_at"> & { id?: string; created_at?: string; updated_at?: string }
+        Update: Partial<Omit<Produto, "id" | "created_at" | "updated_at">>
+      }
+      estoque_movimentacoes: {
+        Row: EstoqueMovimentacao
+        Insert: Omit<EstoqueMovimentacao, "id" | "created_at"> & { id?: string; created_at?: string }
+        Update: Partial<Omit<EstoqueMovimentacao, "id" | "created_at">>
       }
     }
     Functions: {
