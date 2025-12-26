@@ -47,6 +47,7 @@ export default function NewEventPage() {
   const [startTime, setStartTime] = useState("")
   const [endTime, setEndTime] = useState("")
   const [location, setLocation] = useState("")
+  const [uf, setUf] = useState("")
   const [cidade, setCidade] = useState("")
   const [status, setStatus] = useState("pendente")
   const [valor, setValor] = useState("")
@@ -205,6 +206,7 @@ export default function NewEventPage() {
         description,
         date: eventDate.toISOString(),
         location,
+        uf: uf || null,
         cidade: cidade || null,
         admin_id: user.id,
         fornecedor_id: null, // Não usamos mais este campo diretamente
@@ -517,6 +519,22 @@ export default function NewEventPage() {
                     disabled={isLoading}
                   />
                 </div>
+              </div>
+
+              {/* UF */}
+              <div className="space-y-2">
+                <Label htmlFor="uf" className="text-sm font-medium">
+                  UF
+                </Label>
+                <Input
+                  id="uf"
+                  placeholder="UF (Estado)"
+                  className="w-full focus:ring-offset-2"
+                  value={uf}
+                  onChange={(e) => setUf(e.target.value.toUpperCase())}
+                  maxLength={2}
+                  disabled={isLoading}
+                />
               </div>
 
               {/* Cidade */}

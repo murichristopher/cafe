@@ -625,6 +625,12 @@ function EventDetails({
           <MapPin className="mr-2 h-5 w-5 text-yellow-500" />
           {event.location}
         </div>
+        {event.uf && (
+          <div className="flex items-center text-muted-foreground">
+            <MapPin className="mr-2 h-5 w-5 text-yellow-500" />
+            UF: {event.uf}
+          </div>
+        )}
         {event.cidade && (
           <div className="flex items-center text-muted-foreground">
             <MapPin className="mr-2 h-5 w-5 text-yellow-500" />

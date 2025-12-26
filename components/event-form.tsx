@@ -40,6 +40,7 @@ const eventFormSchema = z.object({
   location: z.string().min(3, {
     message: "O local deve ter pelo menos 3 caracteres.",
   }),
+  uf: z.string().optional(),
   cidade: z.string().optional(),
   status: z.string(),
   fornecedores: z.array(z.string()).optional(),
@@ -84,6 +85,7 @@ export function EventForm({ event, isEditing = false }: EventFormProps) {
       date: event?.date ? new Date(event.date) : new Date(),
       time: event?.date ? format(new Date(event.date), "HH:mm") : "09:00",
       location: event?.location || "",
+      uf: event?.uf || "",
       cidade: event?.cidade || "",
       status: event?.status || "pendente",
       fornecedores: [],
@@ -201,6 +203,7 @@ export function EventForm({ event, isEditing = false }: EventFormProps) {
         description: values.description,
         date: dateTime.toISOString(),
         location: values.location,
+        uf: values.uf || null,
         cidade: values.cidade || null,
         status: values.status,
         admin_id: user.id,
@@ -354,6 +357,20 @@ export function EventForm({ event, isEditing = false }: EventFormProps) {
                 <FormLabel>Local</FormLabel>
                 <FormControl>
                   <Input placeholder="Local do evento" {...field} className="bg-[#222222] border-zinc-700 text-white" />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name="uf"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>UF</FormLabel>
+                <FormControl>
+                  <Input placeholder="UF (Estado)" {...field} className="bg-[#222222] border-zinc-700 text-white" maxLength={2} />
                 </FormControl>
                 <FormMessage />
               </FormItem>

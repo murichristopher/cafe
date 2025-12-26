@@ -13,6 +13,7 @@ export type Event = {
   date: string
   data_termino?: string | null
   location: string
+  uf?: string | null
   cidade?: string | null
   admin_id: string
   fornecedor_id: string | null
