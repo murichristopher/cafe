@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Download, Calendar, Clock, Users, Search, FileText } from "lucide-react"
+import { Download, Calendar, Clock, Users, Search, FileText, Plus } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import {
@@ -18,8 +18,8 @@ import { toast } from "@/components/ui/use-toast"
 import { supabase } from "@/lib/supabase"
 import { format } from "date-fns"
 import { ptBR } from "date-fns/locale"
-import { jsPDF } from "jspdf"
 import type { Cardapio } from "@/types"
+import Link from "next/link"
 
 export default function CardapiosPage() {
   const [cardapios, setCardapios] = useState<Cardapio[]>([])
@@ -81,155 +81,446 @@ export default function CardapiosPage() {
     }
   }
 
-  const generatePDF = (cardapio: Cardapio) => {
+  const formatDate = (dateString: string) => {
+    if (!dateString) return ""
+    const date = new Date(dateString)
+    const day = String(date.getDate()).padStart(2, "0")
+    const month = String(date.getMonth() + 1).padStart(2, "0")
+    return `${day}/${month}`
+  }
+
+  const formatTime = (timeString: string) => {
+    if (!timeString) return ""
+    const [hours, minutes] = timeString.split(":")
+    return `${hours}:${minutes}`
+  }
+
+  const generatePDF = async (cardapio: Cardapio) => {
+    // Importar jsPDF dinamicamente
+    const jsPDFModule = await import("jspdf")
+    const jsPDF = jsPDFModule.default
+
     const doc = new jsPDF({
       orientation: "portrait",
       unit: "mm",
       format: "a4",
     })
 
-    // Cores (aproximação do design da imagem)
-    const darkGreen = [34, 68, 51] // #224433
-    const gold = [212, 175, 55] // #D4AF37
+    const pageWidth = doc.internal.pageSize.getWidth()
+    const pageHeight = doc.internal.pageSize.getHeight()
+    const margin = 15
+    const contentWidth = pageWidth - margin * 2
+    const columnGap = 10
+
+    // Paleta de cores expandida
+    const darkGreen = [13, 51, 44] // #0d332c
+    const gold = [210, 180, 120] // #d2b478
+    const lightGold = [230, 200, 140] // #e6c88c
     const white = [255, 255, 255]
+    const darkGold = [180, 150, 90] // #b4965a
+    const lightGreen = [20, 70, 60] // #14463c
+
+    // Função para adicionar padrão decorativo
+    const addDecorativePattern = (x: number, y: number, width: number, height: number) => {
+      doc.setDrawColor(gold[0], gold[1], gold[2])
+      doc.setLineWidth(0.3)
+      // Linhas diagonais sutis
+      for (let i = 0; i < width; i += 5) {
+        doc.line(x + i, y, x + i + 2, y + height)
+      }
+    }
+
+    // Função para adicionar sombra sutil
+    const addShadow = (x: number, y: number, width: number, height: number) => {
+      doc.setFillColor(5, 5, 5) // Cinza muito escuro para simular sombra
+      doc.rect(x + 1, y + 1, width, height, "F")
+    }
+
+    // Função para criar card com borda decorativa (sem sombra)
+    const createCard = (x: number, y: number, width: number, height: number, fillColor: number[], borderColor: number[]) => {
+      // Card principal
+      doc.setFillColor(fillColor[0], fillColor[1], fillColor[2])
+      doc.setDrawColor(borderColor[0], borderColor[1], borderColor[2])
+      doc.setLineWidth(0.5)
+      doc.rect(x, y, width, height, "FD")
+      // Borda interna dourada
+      doc.setDrawColor(gold[0], gold[1], gold[2])
+      doc.setLineWidth(0.3)
+      doc.rect(x + 1, y + 1, width - 2, height - 2, "D")
+    }
+
+    // Função auxiliar para adicionar fundo em nova página
+    const addPageBackground = () => {
+      doc.setFillColor(darkGreen[0], darkGreen[1], darkGreen[2])
+      doc.rect(0, 0, pageWidth, pageHeight, "F")
+      // Padrão decorativo sutil no fundo
+      doc.setFillColor(lightGreen[0] + 10, lightGreen[1] + 10, lightGreen[2] + 10) // Mais claro para simular transparência
+      for (let i = 0; i < pageHeight; i += 20) {
+        doc.circle(pageWidth / 2, i, 30, "F")
+      }
+    }
 
     // Fundo verde escuro
-    doc.setFillColor(darkGreen[0], darkGreen[1], darkGreen[2])
-    doc.rect(0, 0, 210, 297, "F")
+    addPageBackground()
 
-    // Logo e título no topo esquerdo
-    doc.setTextColor(white[0], white[1], white[2])
-    doc.setFontSize(20)
-    doc.setFont("helvetica", "bold")
-    doc.text("ELEVE", 20, 25)
-    doc.setFontSize(14)
-    doc.setFont("helvetica", "normal")
-    doc.text("CAFÉ", 20, 32)
-
-    // Data e horário no topo direito
-    doc.setFontSize(9)
-    doc.setFont("helvetica", "normal")
-    const dataFormatada = format(new Date(cardapio.data), "dd/MM", { locale: ptBR })
-    doc.text(`Data: ${dataFormatada}`, 150, 22)
-    doc.text(`Horário: ${cardapio.horario_inicio} às ${cardapio.horario_fim}`, 150, 28)
-    doc.text(`${cardapio.quantidade_participantes} participantes`, 150, 34)
-
-    // Título COQUETEL com borda tracejada
-    doc.setFontSize(28)
-    doc.setFont("helvetica", "bold")
-    const titleWidth = doc.getTextWidth("COQUETEL")
-    const titleX = (210 - titleWidth) / 2
-    doc.setDrawColor(gold[0], gold[1], gold[2])
-    doc.setLineWidth(0.5)
-    doc.setLineDashPattern([5, 5], 0)
-    doc.rect(titleX - 5, 45, titleWidth + 10, 12)
-    doc.setTextColor(gold[0], gold[1], gold[2])
-    doc.text("COQUETEL", 105, 54, { align: "center" })
-
-    // Linha divisória vertical dourada com ícone de café no meio
-    doc.setLineWidth(1.5)
-    doc.setLineDashPattern([], 0)
-    doc.setDrawColor(gold[0], gold[1], gold[2])
-    doc.line(105, 70, 105, 240)
+    // Logo e informações do evento - alinhados na mesma altura, sem molduras
+    const topSectionY = margin - 5 // Logo um pouco mais para cima
+    let logoHeight = 0
     
-    // Ícone de café simples (círculo representando xícara)
+    // Logo (canto superior esquerdo) - sem moldura
+    try {
+      const logoResponse = await fetch("/logo-gold.png")
+      if (logoResponse.ok) {
+        const logoBlob = await logoResponse.blob()
+        const logoUrl = URL.createObjectURL(logoBlob)
+        const img = new Image()
+        img.crossOrigin = "anonymous"
+        img.src = logoUrl
+
+        await new Promise<void>((resolve) => {
+          let resolved = false
+          const timeout = setTimeout(() => {
+            if (!resolved) {
+              resolved = true
+              URL.revokeObjectURL(logoUrl)
+              resolve()
+            }
+          }, 2000)
+
+          img.onload = () => {
+            if (!resolved) {
+              clearTimeout(timeout)
+              resolved = true
+              try {
+                const logoWidth = 35
+                logoHeight = (img.height / img.width) * logoWidth
+                doc.addImage(img, "PNG", margin, topSectionY, logoWidth, logoHeight)
+                URL.revokeObjectURL(logoUrl)
+                resolve()
+              } catch (err) {
+                URL.revokeObjectURL(logoUrl)
+                resolve()
+              }
+            }
+          }
+          img.onerror = () => {
+            if (!resolved) {
+              clearTimeout(timeout)
+              resolved = true
+              URL.revokeObjectURL(logoUrl)
+              resolve()
+            }
+          }
+        })
+      } else {
+        // Se não tiver logo, apenas texto
+        doc.setTextColor(gold[0], gold[1], gold[2])
+        doc.setFontSize(14)
+        doc.setFont("helvetica", "bold")
+        doc.text("ELEVE", margin, topSectionY + 8)
+        doc.setFontSize(10)
+        doc.text("CAFÉ", margin, topSectionY + 16)
+        logoHeight = 20
+      }
+    } catch (error) {
+      console.error("Erro ao carregar logo:", error)
+      doc.setTextColor(gold[0], gold[1], gold[2])
+      doc.setFontSize(14)
+      doc.setFont("helvetica", "bold")
+      doc.text("ELEVE", margin, topSectionY + 8)
+      doc.setFontSize(10)
+      doc.text("CAFÉ", margin, topSectionY + 16)
+      logoHeight = 20
+    }
+
+    // Informações do evento (canto superior direito) - sem moldura, alinhado com logo
+    doc.setTextColor(white[0], white[1], white[2])
+    doc.setFontSize(10)
+    doc.setFont("helvetica", "normal")
+    const eventInfoY = topSectionY + (logoHeight > 0 ? logoHeight / 2 - 6 : 5)
+    const eventInfoX = pageWidth - margin
+    const lineSpacing = 5.5
+    
+    doc.text(`Data: ${formatDate(cardapio.data)}`, eventInfoX, eventInfoY, { align: "right" })
+    doc.text(
+      `Horário: ${formatTime(cardapio.horario_inicio)} às ${formatTime(cardapio.horario_fim)}`,
+      eventInfoX,
+      eventInfoY + lineSpacing,
+      { align: "right" }
+    )
+    doc.text(
+      `${cardapio.quantidade_participantes} participantes`,
+      eventInfoX,
+      eventInfoY + lineSpacing * 2,
+      { align: "right" }
+    )
+
+    // Título COQUETEL - alinhado após logo e info
+    const titleY = Math.max(topSectionY + logoHeight + 15, topSectionY + 40)
+    const titleWidth = 75
+    const titleHeight = 18
+    const titleX = (pageWidth - titleWidth) / 2
+    
+    // Borda externa dourada
+    doc.setFillColor(darkGold[0], darkGold[1], darkGold[2])
+    doc.setDrawColor(gold[0], gold[1], gold[2])
+    doc.setLineWidth(1.2)
+    doc.rect(titleX, titleY, titleWidth, titleHeight, "FD")
+    
+    // Borda interna
+    doc.setDrawColor(lightGold[0], lightGold[1], lightGold[2])
+    doc.setLineWidth(0.4)
+    doc.rect(titleX + 2, titleY + 2, titleWidth - 4, titleHeight - 4, "D")
+    
+    // Fundo gradiente simulado (camadas)
     doc.setFillColor(gold[0], gold[1], gold[2])
-    doc.circle(105, 155, 3, "F")
+    doc.rect(titleX + 3, titleY + 3, titleWidth - 6, titleHeight - 6, "F")
+    
+    // Texto principal
+    doc.setTextColor(white[0], white[1], white[2])
+    doc.setFontSize(21)
+    doc.setFont("helvetica", "bold")
+    doc.text("COQUETEL", pageWidth / 2, titleY + titleHeight / 2 + 4, { align: "center" })
+    
+    // Decoração nas laterais
+    doc.setFillColor(gold[0], gold[1], gold[2])
+    doc.circle(titleX - 7, titleY + titleHeight / 2, 2.5, "F")
+    doc.circle(titleX + titleWidth + 7, titleY + titleHeight / 2, 2.5, "F")
+
+    // Linha vertical dourada decorativa
+    const lineX = pageWidth / 2
+    const lineStartY = titleY + titleHeight + 12
+    const lineEndY = pageHeight - margin - 40
+    
+    // Linha principal
+    doc.setDrawColor(gold[0], gold[1], gold[2])
+    doc.setLineWidth(1.5)
+    doc.line(lineX, lineStartY, lineX, lineEndY)
+    
+    // Linhas decorativas laterais
+    doc.setDrawColor(lightGold[0], lightGold[1], lightGold[2])
+    doc.setLineWidth(0.5)
+    doc.line(lineX - 2, lineStartY, lineX - 2, lineEndY)
+    doc.line(lineX + 2, lineStartY, lineX + 2, lineEndY)
+
+    // Ícone de café decorativo na linha
+    const coffeeIconY = lineStartY + (lineEndY - lineStartY) / 2
+    // Círculo externo
+    doc.setFillColor(darkGold[0], darkGold[1], darkGold[2])
+    doc.circle(lineX, coffeeIconY, 5, "F")
+    // Círculo interno
+    doc.setFillColor(gold[0], gold[1], gold[2])
+    doc.circle(lineX, coffeeIconY, 3.5, "F")
+    // Círculo central
+    doc.setFillColor(lightGold[0], lightGold[1], lightGold[2])
+    doc.circle(lineX, coffeeIconY, 2, "F")
+    
+    // Decorações nas extremidades da linha
+    doc.setFillColor(gold[0], gold[1], gold[2])
+    doc.circle(lineX, lineStartY, 2, "F")
+    doc.circle(lineX, lineEndY, 2, "F")
+
+    // Colunas - perfeitamente alinhadas
+    const leftColumnX = margin
+    const rightColumnX = pageWidth / 2 + columnGap / 2
+    const columnWidth = (pageWidth - margin * 2 - columnGap) / 2
+    const sectionSpacing = 16 // Espaço entre título e itens
+    const itemSpacing = 5.5 // Espaço entre itens
+    const sectionTitleHeight = 9 // Altura do título da seção
+    const startY = titleY + titleHeight + 18 // Posição inicial alinhada
 
     // Coluna esquerda - Salgados
-    doc.setTextColor(gold[0], gold[1], gold[2])
-    doc.setFillColor(gold[0], gold[1], gold[2])
-    doc.rect(20, 70, 75, 7, "F")
-    doc.setTextColor(white[0], white[1], white[2])
-    doc.setFontSize(11)
-    doc.setFont("helvetica", "bold")
-    doc.text("Salgados:", 22, 75.5)
+    let leftY = startY
 
-    doc.setFont("helvetica", "normal")
-    doc.setFontSize(9)
+    // Card para título Salgados
+    const salgadosCardHeight = sectionTitleHeight + 2
+    createCard(leftColumnX, leftY, columnWidth, salgadosCardHeight, gold, darkGold)
     doc.setTextColor(white[0], white[1], white[2])
-    let yPos = 85
+    doc.setFontSize(13)
+    doc.setFont("helvetica", "bold")
+    // Ícone decorativo
+    doc.setFillColor(white[0], white[1], white[2])
+    doc.circle(leftColumnX + 4, leftY + 5, 1.5, "F")
+    doc.text("Salgados", leftColumnX + 8, leftY + 6.5)
+
+    leftY += sectionSpacing
+    doc.setTextColor(white[0], white[1], white[2])
+    doc.setFontSize(10.5)
+    doc.setFont("helvetica", "normal")
     cardapio.salgados.forEach((salgado) => {
-      if (yPos < 240) {
-        doc.text(salgado, 22, yPos)
-        yPos += 6
+      if (leftY > pageHeight - margin - 35) {
+        doc.addPage()
+        addPageBackground()
+        leftY = margin + 20
       }
-    })
-
-    // Coluna direita - Doces
-    const docesStartY = 70
-    doc.setTextColor(gold[0], gold[1], gold[2])
-    doc.setFillColor(gold[0], gold[1], gold[2])
-    doc.rect(110, docesStartY, 80, 7, "F")
-    doc.setTextColor(white[0], white[1], white[2])
-    doc.setFontSize(11)
-    doc.setFont("helvetica", "bold")
-    doc.text("Doces:", 112, 75.5)
-
-    doc.setFont("helvetica", "normal")
-    doc.setFontSize(9)
-    doc.setTextColor(white[0], white[1], white[2])
-    yPos = 85
-    cardapio.doces.forEach((doce) => {
-      if (yPos < 180) {
-        doc.text(doce, 112, yPos)
-        yPos += 6
-      }
-    })
-
-    // Bebidas (abaixo dos doces na coluna direita)
-    const bebidasY = yPos + 8
-    if (bebidasY < 240) {
-      doc.setTextColor(gold[0], gold[1], gold[2])
+      // Bullet decorativo
       doc.setFillColor(gold[0], gold[1], gold[2])
-      doc.rect(110, bebidasY, 80, 7, "F")
-      doc.setTextColor(white[0], white[1], white[2])
-      doc.setFontSize(11)
-      doc.setFont("helvetica", "bold")
-      doc.text("Bebidas:", 112, bebidasY + 5.5)
+      doc.circle(leftColumnX + 4, leftY - 1.5, 1.2, "F")
+      // Quebrar linha se o texto for muito longo
+      const maxWidth = columnWidth - 12 // Largura disponível (coluna - margem - espaço do bullet)
+      const lines = doc.splitTextToSize(salgado, maxWidth)
+      doc.text(lines, leftColumnX + 8, leftY)
+      leftY += itemSpacing * lines.length // Ajustar espaçamento baseado no número de linhas
+    })
 
-      doc.setFont("helvetica", "normal")
-      doc.setFontSize(9)
-      doc.setTextColor(white[0], white[1], white[2])
-      let bebidasYPos = bebidasY + 15
-      Object.entries(cardapio.bebidas).forEach(([bebida, quantidade]) => {
-        if (bebidasYPos < 240 && quantidade > 0) {
-          const texto = quantidade === 1 
-            ? bebida 
-            : `${quantidade} ${bebida.includes("unidades") || bebida.includes("garrafas") ? "" : "unidades de"} ${bebida}`
-          doc.text(texto, 112, bebidasYPos)
-          bebidasYPos += 6
-        }
-      })
-    }
+    // Coluna direita - Doces e Bebidas
+    let rightY = startY
 
-    // Informações de contato no rodapé esquerdo
-    doc.setFontSize(7)
+    // Card para título Doces
+    const docesCardHeight = sectionTitleHeight + 2
+    createCard(rightColumnX, rightY, columnWidth, docesCardHeight, gold, darkGold)
     doc.setTextColor(white[0], white[1], white[2])
-    doc.setFont("helvetica", "normal")
-    doc.text("www.elevecafe.com.br", 20, 275)
-    doc.text("WhatsApp: (21) 96591-3009", 20, 282)
-    doc.text("Instagram: @eleve.cafe", 20, 289)
+    doc.setFontSize(13)
+    doc.setFont("helvetica", "bold")
+    // Ícone decorativo
+    doc.setFillColor(white[0], white[1], white[2])
+    doc.circle(rightColumnX + 4, rightY + 5, 1.5, "F")
+    doc.text("Doces", rightColumnX + 8, rightY + 6.5)
 
-    // Informações adicionais se houver
-    if (cardapio.informacoes_adicionais) {
-      doc.setFontSize(8)
-      doc.setFont("helvetica", "bold")
-      doc.text("Informações adicionais:", 20, 250)
-      const lines = doc.splitTextToSize(cardapio.informacoes_adicionais, 80)
-      doc.setFontSize(7)
-      doc.setFont("helvetica", "normal")
-      let infoY = 257
-      lines.forEach((line: string) => {
-        if (infoY < 270) {
-          doc.text(line, 22, infoY)
-          infoY += 4
-        }
-      })
+    rightY += sectionSpacing
+    doc.setTextColor(white[0], white[1], white[2])
+    doc.setFontSize(10.5)
+    doc.setFont("helvetica", "normal")
+    cardapio.doces.forEach((doce) => {
+      if (rightY > pageHeight - margin - 55) {
+        doc.addPage()
+        addPageBackground()
+        rightY = margin + 20
+      }
+      // Bullet decorativo
+      doc.setFillColor(gold[0], gold[1], gold[2])
+      doc.circle(rightColumnX + 4, rightY - 1.5, 1.2, "F")
+      // Quebrar linha se o texto for muito longo
+      const maxWidth = columnWidth - 12 // Largura disponível (coluna - margem - espaço do bullet)
+      const lines = doc.splitTextToSize(doce, maxWidth)
+      doc.text(lines, rightColumnX + 8, rightY)
+      rightY += itemSpacing * lines.length // Ajustar espaçamento baseado no número de linhas
+    })
+
+    // Card para título Bebidas
+    rightY += 4
+    if (rightY > pageHeight - margin - 55) {
+      doc.addPage()
+      addPageBackground()
+      rightY = margin + 20
     }
+    const bebidasCardHeight = sectionTitleHeight + 2
+    createCard(rightColumnX, rightY, columnWidth, bebidasCardHeight, gold, darkGold)
+    doc.setTextColor(white[0], white[1], white[2])
+    doc.setFontSize(13)
+    doc.setFont("helvetica", "bold")
+    // Ícone decorativo
+    doc.setFillColor(white[0], white[1], white[2])
+    doc.circle(rightColumnX + 4, rightY + 5, 1.5, "F")
+    doc.text("Bebidas", rightColumnX + 8, rightY + 6.5)
+
+    rightY += sectionSpacing
+    doc.setTextColor(white[0], white[1], white[2])
+    doc.setFontSize(10.5)
+    doc.setFont("helvetica", "normal")
+    Object.entries(cardapio.bebidas).forEach(([bebida, quantidade]) => {
+      if (rightY > pageHeight - margin - 35) {
+        doc.addPage()
+        addPageBackground()
+        rightY = margin + 20
+      }
+      // Bullet decorativo
+      doc.setFillColor(gold[0], gold[1], gold[2])
+      doc.circle(rightColumnX + 4, rightY - 1.5, 1.2, "F")
+      let texto = bebida
+      if (bebida === "Cerveja") {
+        texto = `${quantidade} unidades de cerveja Heineken`
+      } else if (bebida === "Espumante") {
+        texto = `${quantidade} garrafas de espumante`
+      } else if (quantidade > 1) {
+        texto = `${quantidade} ${bebida}`
+      }
+      // Quebrar linha se o texto for muito longo
+      const maxWidth = columnWidth - 12 // Largura disponível (coluna - margem - espaço do bullet)
+      const lines = doc.splitTextToSize(texto, maxWidth)
+      doc.text(lines, rightColumnX + 8, rightY)
+      rightY += itemSpacing * lines.length // Ajustar espaçamento baseado no número de linhas
+    })
+
+    // Calcular altura máxima das colunas
+    const leftColumnEndY = titleY + titleHeight + 18 + sectionSpacing + (cardapio.salgados.length * itemSpacing)
+    const rightColumnEndY = titleY + titleHeight + 18 + sectionSpacing + (cardapio.doces.length * itemSpacing) + 3 + sectionSpacing + (Object.keys(cardapio.bebidas).length * itemSpacing)
+    const maxContentY = Math.max(leftColumnEndY, rightColumnEndY)
+
+    // Informações adicionais
+    const spaceForFooter = 30
+    const availableSpace = pageHeight - maxContentY - spaceForFooter
+    const hasAdditionalInfo = cardapio.informacoes_adicionais?.trim()
+
+    if (hasAdditionalInfo && cardapio.informacoes_adicionais) {
+      doc.setFontSize(10)
+      doc.setFont("helvetica", "normal")
+      const lines = doc.splitTextToSize(cardapio.informacoes_adicionais, contentWidth - 10)
+      const textHeight = lines.length * 5 + 25
+
+      const startY = maxContentY + 12
+
+      if (textHeight <= availableSpace && startY < pageHeight - spaceForFooter - textHeight) {
+        // Cabe na primeira página - com card decorativo
+        createCard(margin, startY, contentWidth, sectionTitleHeight + 2, gold, darkGold)
+        doc.setTextColor(white[0], white[1], white[2])
+        doc.setFontSize(13)
+        doc.setFont("helvetica", "bold")
+        doc.setFillColor(white[0], white[1], white[2])
+        doc.circle(margin + 5, startY + 5, 1.5, "F")
+        doc.text("Informações Adicionais", margin + 9, startY + 7)
+        doc.setFontSize(10)
+        doc.setFont("helvetica", "normal")
+        doc.text(lines, margin + 6, startY + 20)
+      } else {
+        // Nova página com card decorativo
+        doc.addPage()
+        addPageBackground()
+        createCard(margin, margin, contentWidth, sectionTitleHeight + 2, gold, darkGold)
+        doc.setTextColor(white[0], white[1], white[2])
+        doc.setFontSize(15)
+        doc.setFont("helvetica", "bold")
+        doc.setFillColor(white[0], white[1], white[2])
+        doc.circle(margin + 5, margin + 5, 1.5, "F")
+        doc.text("Informações Adicionais", margin + 9, margin + 7)
+        doc.setFontSize(10.5)
+        doc.setFont("helvetica", "normal")
+        doc.text(lines, margin + 6, margin + 22)
+      }
+    }
+
+    // Rodapé decorativo com card
+    const footerY = pageHeight - margin - 15
+    const footerCardHeight = 28
+    createCard(margin, footerY, contentWidth, footerCardHeight, lightGreen, gold)
+    
+    // Linha decorativa acima do rodapé
+    doc.setDrawColor(gold[0], gold[1], gold[2])
+    doc.setLineWidth(0.8)
+    doc.line(margin + 10, footerY, pageWidth - margin - 10, footerY)
+    
+    // Ícone de café decorativo
+    doc.setFillColor(gold[0], gold[1], gold[2])
+    doc.circle(margin + 8, footerY + 6, 3, "F")
+    doc.setFillColor(lightGold[0], lightGold[1], lightGold[2])
+    doc.circle(margin + 8, footerY + 6, 2, "F")
+    
+    doc.setTextColor(white[0], white[1], white[2])
+    doc.setFontSize(9.5)
+    doc.setFont("helvetica", "bold")
+    doc.text("www.elevecafe.com.br", pageWidth / 2, footerY + 8, { align: "center" })
+    doc.setFontSize(9)
+    doc.setFont("helvetica", "normal")
+    doc.text("WhatsApp: (21) 96591-3009", pageWidth / 2, footerY + 14, { align: "center" })
+    doc.text("Instagram: @eleve.cafe", pageWidth / 2, footerY + 20, { align: "center" })
+    
+    // Decorações nas laterais do rodapé
+    doc.setFillColor(gold[0], gold[1], gold[2])
+    doc.circle(margin + 5, footerY + footerCardHeight / 2, 2, "F")
+    doc.circle(pageWidth - margin - 5, footerY + footerCardHeight / 2, 2, "F")
 
     // Salvar PDF
-    const fileName = `cardapio-${format(new Date(cardapio.data), "yyyy-MM-dd")}-${cardapio.id.substring(0, 8)}.pdf`
+    const fileName = `cardapio-${cardapio.data || "evento"}.pdf`
     doc.save(fileName)
 
     toast({
@@ -245,6 +536,11 @@ export default function CardapiosPage() {
           <h1 className="text-3xl font-bold">Cardápios</h1>
           <p className="text-muted-foreground">Visualize e gerencie os cardápios recebidos</p>
         </div>
+        <Button asChild className="bg-amber-500 hover:bg-amber-600">
+          <Link href="/dashboard/cardapios/new">
+            <Plus className="mr-2 h-4 w-4" /> Novo Cardápio
+          </Link>
+        </Button>
       </div>
 
       <Card>

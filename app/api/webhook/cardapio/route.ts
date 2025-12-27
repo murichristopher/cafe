@@ -5,6 +5,18 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL as string
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY as string
 const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
+// Handler para OPTIONS (CORS preflight)
+export async function OPTIONS() {
+  return new NextResponse(null, {
+    status: 200,
+    headers: {
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+      "Access-Control-Allow-Headers": "Content-Type, Authorization",
+    },
+  })
+}
+
 export async function POST(request: NextRequest) {
   console.log("[WEBHOOK] POST /api/webhook/cardapio - Recebendo cardápio")
   
@@ -29,7 +41,14 @@ export async function POST(request: NextRequest) {
       console.error("[WEBHOOK] Campos obrigatórios faltando")
       return NextResponse.json(
         { error: "Campos obrigatórios faltando: data, horarioInicio, horarioFim, quantidadeParticipantes" },
-        { status: 400 }
+        { 
+          status: 400,
+          headers: {
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+            "Access-Control-Allow-Headers": "Content-Type, Authorization",
+          },
+        }
       )
     }
 
@@ -54,21 +73,45 @@ export async function POST(request: NextRequest) {
       console.error("[WEBHOOK] Erro ao inserir cardápio:", insertError)
       return NextResponse.json(
         { error: "Erro ao salvar cardápio", details: insertError.message },
-        { status: 500 }
+        { 
+          status: 500,
+          headers: {
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+            "Access-Control-Allow-Headers": "Content-Type, Authorization",
+          },
+        }
       )
     }
 
     console.log("[WEBHOOK] Cardápio salvo com sucesso:", cardapioData.id)
-    return NextResponse.json({ 
-      success: true, 
-      id: cardapioData.id,
-      message: "Cardápio recebido e salvo com sucesso"
-    })
+    return NextResponse.json(
+      { 
+        success: true, 
+        id: cardapioData.id,
+        message: "Cardápio recebido e salvo com sucesso"
+      },
+      {
+        status: 200,
+        headers: {
+          "Access-Control-Allow-Origin": "*",
+          "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+          "Access-Control-Allow-Headers": "Content-Type, Authorization",
+        },
+      }
+    )
   } catch (error) {
     console.error("[WEBHOOK] Erro ao processar webhook:", error)
     return NextResponse.json(
       { error: "Erro ao processar webhook", details: error instanceof Error ? error.message : "Erro desconhecido" },
-      { status: 500 }
+      { 
+        status: 500,
+        headers: {
+          "Access-Control-Allow-Origin": "*",
+          "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+          "Access-Control-Allow-Headers": "Content-Type, Authorization",
+        },
+      }
     )
   }
 }
