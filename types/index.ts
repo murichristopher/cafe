@@ -100,9 +100,14 @@ export type Cardapio = {
   horario_inicio: string;
   horario_fim: string;
   quantidade_participantes: number;
+  nome_cliente?: string | null;
+  local?: string | null;
+  sanduiches: string[];
   salgados: string[];
   doces: string[];
   bebidas: Record<string, number>;
+  titulo?: string | null;
+  investimento?: number | null;
   informacoes_adicionais?: string | null;
   timestamp: string;
   created_at: string;

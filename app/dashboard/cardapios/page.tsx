@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Download, Calendar, Clock, Users, Search, FileText, Plus } from "lucide-react"
+import { Download, Calendar, Clock, Users, Search, FileText, Plus, Edit } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import {
@@ -215,27 +215,27 @@ export default function CardapiosPage() {
       } else {
         // Se não tiver logo, apenas texto
         doc.setTextColor(gold[0], gold[1], gold[2])
-        doc.setFontSize(14)
+        doc.setFontSize(16.8) // 14 * 1.2
         doc.setFont("helvetica", "bold")
         doc.text("ELEVE", margin, topSectionY + 8)
-        doc.setFontSize(10)
+        doc.setFontSize(12) // 10 * 1.2
         doc.text("CAFÉ", margin, topSectionY + 16)
         logoHeight = 20
       }
     } catch (error) {
       console.error("Erro ao carregar logo:", error)
       doc.setTextColor(gold[0], gold[1], gold[2])
-      doc.setFontSize(14)
+      doc.setFontSize(16.8) // 14 * 1.2
       doc.setFont("helvetica", "bold")
       doc.text("ELEVE", margin, topSectionY + 8)
-      doc.setFontSize(10)
+      doc.setFontSize(12) // 10 * 1.2
       doc.text("CAFÉ", margin, topSectionY + 16)
       logoHeight = 20
     }
 
     // Informações do evento (canto superior direito) - sem moldura, alinhado com logo
     doc.setTextColor(white[0], white[1], white[2])
-    doc.setFontSize(10)
+    doc.setFontSize(12) // 10 * 1.2
     doc.setFont("helvetica", "normal")
     const eventInfoY = topSectionY + (logoHeight > 0 ? logoHeight / 2 - 6 : 5)
     const eventInfoX = pageWidth - margin
@@ -243,82 +243,52 @@ export default function CardapiosPage() {
     
     doc.text(`Data: ${formatDate(cardapio.data)}`, eventInfoX, eventInfoY, { align: "right" })
     doc.text(
-      `Horário: ${formatTime(cardapio.horario_inicio)} às ${formatTime(cardapio.horario_fim)}`,
+      `Hora: ${formatTime(cardapio.horario_inicio)}`,
       eventInfoX,
       eventInfoY + lineSpacing,
       { align: "right" }
     )
     doc.text(
-      `${cardapio.quantidade_participantes} participantes`,
+      `Pax: ${cardapio.quantidade_participantes}`,
       eventInfoX,
       eventInfoY + lineSpacing * 2,
       { align: "right" }
     )
+    let currentLine = 3
+    if (cardapio.nome_cliente) {
+      doc.text(`Cliente: ${cardapio.nome_cliente}`, eventInfoX, eventInfoY + lineSpacing * currentLine, { align: "right" })
+      currentLine++
+    }
+    if (cardapio.local) {
+      doc.text(`Local: ${cardapio.local}`, eventInfoX, eventInfoY + lineSpacing * currentLine, { align: "right" })
+      currentLine++
+    }
 
-    // Título COQUETEL - alinhado após logo e info
-    const titleY = Math.max(topSectionY + logoHeight + 15, topSectionY + 40)
-    const titleWidth = 75
+    // Título - alinhado após logo e info (sem background)
+    const titleY = Math.max(topSectionY + logoHeight + 6, topSectionY + 30)
     const titleHeight = 18
-    const titleX = (pageWidth - titleWidth) / 2
+    const titleText = cardapio.titulo || "COQUETEL"
     
-    // Borda externa dourada
-    doc.setFillColor(darkGold[0], darkGold[1], darkGold[2])
-    doc.setDrawColor(gold[0], gold[1], gold[2])
-    doc.setLineWidth(1.2)
-    doc.rect(titleX, titleY, titleWidth, titleHeight, "FD")
-    
-    // Borda interna
-    doc.setDrawColor(lightGold[0], lightGold[1], lightGold[2])
-    doc.setLineWidth(0.4)
-    doc.rect(titleX + 2, titleY + 2, titleWidth - 4, titleHeight - 4, "D")
-    
-    // Fundo gradiente simulado (camadas)
-    doc.setFillColor(gold[0], gold[1], gold[2])
-    doc.rect(titleX + 3, titleY + 3, titleWidth - 6, titleHeight - 6, "F")
-    
-    // Texto principal
-    doc.setTextColor(white[0], white[1], white[2])
-    doc.setFontSize(21)
+    // Texto principal sem background
+    doc.setTextColor(gold[0], gold[1], gold[2])
+    doc.setFontSize(25.2) // 21 * 1.2
     doc.setFont("helvetica", "bold")
-    doc.text("COQUETEL", pageWidth / 2, titleY + titleHeight / 2 + 4, { align: "center" })
-    
-    // Decoração nas laterais
-    doc.setFillColor(gold[0], gold[1], gold[2])
-    doc.circle(titleX - 7, titleY + titleHeight / 2, 2.5, "F")
-    doc.circle(titleX + titleWidth + 7, titleY + titleHeight / 2, 2.5, "F")
+    doc.text(titleText, pageWidth / 2, titleY + titleHeight / 2 + 4, { align: "center" })
 
-    // Linha vertical dourada decorativa
+    // Linha vertical dourada decorativa (pontilhada)
     const lineX = pageWidth / 2
-    const lineStartY = titleY + titleHeight + 12
+    const lineStartY = titleY + titleHeight + 8
     const lineEndY = pageHeight - margin - 40
     
-    // Linha principal
+    // Linha principal pontilhada
     doc.setDrawColor(gold[0], gold[1], gold[2])
     doc.setLineWidth(1.5)
+    // Padrão de traço: [comprimento do traço, espaço entre traços]
+    doc.setLineDashPattern([3, 3], 0)
     doc.line(lineX, lineStartY, lineX, lineEndY)
     
-    // Linhas decorativas laterais
-    doc.setDrawColor(lightGold[0], lightGold[1], lightGold[2])
-    doc.setLineWidth(0.5)
-    doc.line(lineX - 2, lineStartY, lineX - 2, lineEndY)
-    doc.line(lineX + 2, lineStartY, lineX + 2, lineEndY)
-
-    // Ícone de café decorativo na linha
-    const coffeeIconY = lineStartY + (lineEndY - lineStartY) / 2
-    // Círculo externo
-    doc.setFillColor(darkGold[0], darkGold[1], darkGold[2])
-    doc.circle(lineX, coffeeIconY, 5, "F")
-    // Círculo interno
-    doc.setFillColor(gold[0], gold[1], gold[2])
-    doc.circle(lineX, coffeeIconY, 3.5, "F")
-    // Círculo central
-    doc.setFillColor(lightGold[0], lightGold[1], lightGold[2])
-    doc.circle(lineX, coffeeIconY, 2, "F")
-    
-    // Decorações nas extremidades da linha
-    doc.setFillColor(gold[0], gold[1], gold[2])
-    doc.circle(lineX, lineStartY, 2, "F")
-    doc.circle(lineX, lineEndY, 2, "F")
+    // Resetar padrão de linha para sólida
+    doc.setLineDashPattern([], 0)
 
     // Colunas - perfeitamente alinhadas
     const leftColumnX = margin
@@ -327,25 +297,90 @@ export default function CardapiosPage() {
     const sectionSpacing = 16 // Espaço entre título e itens
     const itemSpacing = 5.5 // Espaço entre itens
     const sectionTitleHeight = 9 // Altura do título da seção
-    const startY = titleY + titleHeight + 18 // Posição inicial alinhada
+    const startY = titleY + titleHeight + 12 // Posição inicial alinhada
 
-    // Coluna esquerda - Salgados
+    // Coluna esquerda - Sanduíches e Salgados
     let leftY = startY
 
-    // Card para título Salgados
-    const salgadosCardHeight = sectionTitleHeight + 2
-    createCard(leftColumnX, leftY, columnWidth, salgadosCardHeight, gold, darkGold)
-    doc.setTextColor(white[0], white[1], white[2])
-    doc.setFontSize(13)
-    doc.setFont("helvetica", "bold")
-    // Ícone decorativo
-    doc.setFillColor(white[0], white[1], white[2])
-    doc.circle(leftColumnX + 4, leftY + 5, 1.5, "F")
-    doc.text("Salgados", leftColumnX + 8, leftY + 6.5)
+    // Sanduíches (se houver)
+    if (cardapio.sanduiches && cardapio.sanduiches.length > 0) {
+      // Badge em formato de pílula padronizado (tamanho fixo)
+      const badgeWidth = 35 // Largura fixa padronizada
+      const badgeHeight = 12
+      const borderRadius = badgeHeight / 2
+      const badgeX = leftColumnX
+      const badgeY = leftY
+      
+      // Fundo dourado em formato de pílula
+      doc.setFillColor(gold[0], gold[1], gold[2])
+      doc.setDrawColor(gold[0], gold[1], gold[2])
+      doc.setLineWidth(0.5)
+      
+      // Retângulo central
+      doc.rect(badgeX + borderRadius, badgeY, badgeWidth - borderRadius * 2, badgeHeight, "FD")
+      
+      // Círculos nas extremidades
+      doc.circle(badgeX + borderRadius, badgeY + borderRadius, borderRadius, "FD")
+      doc.circle(badgeX + badgeWidth - borderRadius, badgeY + borderRadius, borderRadius, "FD")
+      
+      // Texto em verde escuro (aumentado em 20%)
+      doc.setTextColor(darkGreen[0], darkGreen[1], darkGreen[2])
+      doc.setFontSize(14.4) // 12 * 1.2
+      doc.setFont("helvetica", "bold")
+      doc.text("Sanduíches", badgeX + badgeWidth / 2, badgeY + badgeHeight / 2 + 2, { align: "center" })
 
-    leftY += sectionSpacing
+      // Ajustar posição Y para começar os itens após o badge
+      leftY += badgeHeight + sectionSpacing
+      doc.setTextColor(white[0], white[1], white[2])
+      doc.setFontSize(10) // Tamanho original dos itens
+      doc.setFont("helvetica", "normal")
+      cardapio.sanduiches.forEach((sanduiche) => {
+        if (leftY > pageHeight - margin - 35) {
+          doc.addPage()
+          addPageBackground()
+          leftY = margin + 20
+        }
+        // Bullet decorativo
+        doc.setFillColor(gold[0], gold[1], gold[2])
+        doc.circle(leftColumnX + 4, leftY - 1.5, 1.2, "F")
+        // Quebrar linha se o texto for muito longo
+        const maxWidth = columnWidth - 12
+        const lines = doc.splitTextToSize(sanduiche, maxWidth)
+        doc.text(lines, leftColumnX + 8, leftY)
+        leftY += itemSpacing * lines.length
+      })
+      leftY += 4 // Espaço entre sanduíches e salgados
+    }
+
+    // Badge em formato de pílula padronizado (tamanho fixo)
+    const salgadosBadgeWidth = 35 // Largura fixa padronizada
+    const salgadosBadgeHeight = 12
+    const salgadosBorderRadius = salgadosBadgeHeight / 2
+    const salgadosBadgeX = leftColumnX
+    const salgadosBadgeY = leftY
+    
+    // Fundo dourado em formato de pílula
+    doc.setFillColor(gold[0], gold[1], gold[2])
+    doc.setDrawColor(gold[0], gold[1], gold[2])
+    doc.setLineWidth(0.5)
+    
+    // Retângulo central
+    doc.rect(salgadosBadgeX + salgadosBorderRadius, salgadosBadgeY, salgadosBadgeWidth - salgadosBorderRadius * 2, salgadosBadgeHeight, "FD")
+    
+    // Círculos nas extremidades
+    doc.circle(salgadosBadgeX + salgadosBorderRadius, salgadosBadgeY + salgadosBorderRadius, salgadosBorderRadius, "FD")
+    doc.circle(salgadosBadgeX + salgadosBadgeWidth - salgadosBorderRadius, salgadosBadgeY + salgadosBorderRadius, salgadosBorderRadius, "FD")
+    
+    // Texto em verde escuro (aumentado em 20%)
+    doc.setTextColor(darkGreen[0], darkGreen[1], darkGreen[2])
+    doc.setFontSize(14.4) // 12 * 1.2
+    doc.setFont("helvetica", "bold")
+    doc.text("Salgados", salgadosBadgeX + salgadosBadgeWidth / 2, salgadosBadgeY + salgadosBadgeHeight / 2 + 2, { align: "center" })
+
+    // Ajustar posição Y para começar os itens após o badge
+    leftY += salgadosBadgeHeight + sectionSpacing
     doc.setTextColor(white[0], white[1], white[2])
-    doc.setFontSize(10.5)
+    doc.setFontSize(10) // Tamanho original dos itens
     doc.setFont("helvetica", "normal")
     cardapio.salgados.forEach((salgado) => {
       if (leftY > pageHeight - margin - 35) {
@@ -366,20 +401,35 @@ export default function CardapiosPage() {
     // Coluna direita - Doces e Bebidas
     let rightY = startY
 
-    // Card para título Doces
-    const docesCardHeight = sectionTitleHeight + 2
-    createCard(rightColumnX, rightY, columnWidth, docesCardHeight, gold, darkGold)
-    doc.setTextColor(white[0], white[1], white[2])
-    doc.setFontSize(13)
+    // Badge em formato de pílula padronizado (tamanho fixo)
+    const docesBadgeWidth = 35 // Largura fixa padronizada
+    const docesBadgeHeight = 12
+    const docesBorderRadius = docesBadgeHeight / 2
+    const docesBadgeX = rightColumnX
+    const docesBadgeY = rightY
+    
+    // Fundo dourado em formato de pílula
+    doc.setFillColor(gold[0], gold[1], gold[2])
+    doc.setDrawColor(gold[0], gold[1], gold[2])
+    doc.setLineWidth(0.5)
+    
+    // Retângulo central
+    doc.rect(docesBadgeX + docesBorderRadius, docesBadgeY, docesBadgeWidth - docesBorderRadius * 2, docesBadgeHeight, "FD")
+    
+    // Círculos nas extremidades
+    doc.circle(docesBadgeX + docesBorderRadius, docesBadgeY + docesBorderRadius, docesBorderRadius, "FD")
+    doc.circle(docesBadgeX + docesBadgeWidth - docesBorderRadius, docesBadgeY + docesBorderRadius, docesBorderRadius, "FD")
+    
+    // Texto em verde escuro (aumentado em 20%)
+    doc.setTextColor(darkGreen[0], darkGreen[1], darkGreen[2])
+    doc.setFontSize(14.4) // 12 * 1.2
     doc.setFont("helvetica", "bold")
-    // Ícone decorativo
-    doc.setFillColor(white[0], white[1], white[2])
-    doc.circle(rightColumnX + 4, rightY + 5, 1.5, "F")
-    doc.text("Doces", rightColumnX + 8, rightY + 6.5)
+    doc.text("Doces", docesBadgeX + docesBadgeWidth / 2, docesBadgeY + docesBadgeHeight / 2 + 2, { align: "center" })
 
-    rightY += sectionSpacing
+    // Ajustar posição Y para começar os itens após o badge
+    rightY += docesBadgeHeight + sectionSpacing
     doc.setTextColor(white[0], white[1], white[2])
-    doc.setFontSize(10.5)
+    doc.setFontSize(10) // Tamanho original dos itens
     doc.setFont("helvetica", "normal")
     cardapio.doces.forEach((doce) => {
       if (rightY > pageHeight - margin - 55) {
@@ -397,26 +447,41 @@ export default function CardapiosPage() {
       rightY += itemSpacing * lines.length // Ajustar espaçamento baseado no número de linhas
     })
 
-    // Card para título Bebidas
+    // Badge em formato de pílula padronizado (tamanho fixo)
     rightY += 4
     if (rightY > pageHeight - margin - 55) {
       doc.addPage()
       addPageBackground()
       rightY = margin + 20
     }
-    const bebidasCardHeight = sectionTitleHeight + 2
-    createCard(rightColumnX, rightY, columnWidth, bebidasCardHeight, gold, darkGold)
-    doc.setTextColor(white[0], white[1], white[2])
-    doc.setFontSize(13)
+    const bebidasBadgeWidth = 35 // Largura fixa padronizada
+    const bebidasBadgeHeight = 12
+    const bebidasBorderRadius = bebidasBadgeHeight / 2
+    const bebidasBadgeX = rightColumnX
+    const bebidasBadgeY = rightY
+    
+    // Fundo dourado em formato de pílula
+    doc.setFillColor(gold[0], gold[1], gold[2])
+    doc.setDrawColor(gold[0], gold[1], gold[2])
+    doc.setLineWidth(0.5)
+    
+    // Retângulo central
+    doc.rect(bebidasBadgeX + bebidasBorderRadius, bebidasBadgeY, bebidasBadgeWidth - bebidasBorderRadius * 2, bebidasBadgeHeight, "FD")
+    
+    // Círculos nas extremidades
+    doc.circle(bebidasBadgeX + bebidasBorderRadius, bebidasBadgeY + bebidasBorderRadius, bebidasBorderRadius, "FD")
+    doc.circle(bebidasBadgeX + bebidasBadgeWidth - bebidasBorderRadius, bebidasBadgeY + bebidasBorderRadius, bebidasBorderRadius, "FD")
+    
+    // Texto em verde escuro (aumentado em 20%)
+    doc.setTextColor(darkGreen[0], darkGreen[1], darkGreen[2])
+    doc.setFontSize(14.4) // 12 * 1.2
     doc.setFont("helvetica", "bold")
-    // Ícone decorativo
-    doc.setFillColor(white[0], white[1], white[2])
-    doc.circle(rightColumnX + 4, rightY + 5, 1.5, "F")
-    doc.text("Bebidas", rightColumnX + 8, rightY + 6.5)
+    doc.text("Bebidas", bebidasBadgeX + bebidasBadgeWidth / 2, bebidasBadgeY + bebidasBadgeHeight / 2 + 2, { align: "center" })
 
-    rightY += sectionSpacing
+    // Ajustar posição Y para começar os itens após o badge
+    rightY += bebidasBadgeHeight + sectionSpacing
     doc.setTextColor(white[0], white[1], white[2])
-    doc.setFontSize(10.5)
+    doc.setFontSize(10) // Tamanho original dos itens
     doc.setFont("helvetica", "normal")
     Object.entries(cardapio.bebidas).forEach(([bebida, quantidade]) => {
       if (rightY > pageHeight - margin - 35) {
@@ -442,82 +507,172 @@ export default function CardapiosPage() {
       rightY += itemSpacing * lines.length // Ajustar espaçamento baseado no número de linhas
     })
 
-    // Calcular altura máxima das colunas
-    const leftColumnEndY = titleY + titleHeight + 18 + sectionSpacing + (cardapio.salgados.length * itemSpacing)
-    const rightColumnEndY = titleY + titleHeight + 18 + sectionSpacing + (cardapio.doces.length * itemSpacing) + 3 + sectionSpacing + (Object.keys(cardapio.bebidas).length * itemSpacing)
+    // Calcular altura máxima das colunas (ajustado para incluir investimento e sanduíches)
+    const sanduichesHeight = cardapio.sanduiches && cardapio.sanduiches.length > 0 
+      ? sectionSpacing + (cardapio.sanduiches.length * itemSpacing) + 4 
+      : 0
+    const leftColumnEndY = startY + sanduichesHeight + sectionSpacing + (cardapio.salgados.length * itemSpacing)
+    const rightColumnEndY = startY + sectionSpacing + (cardapio.doces.length * itemSpacing) + 3 + sectionSpacing + (Object.keys(cardapio.bebidas).length * itemSpacing)
     const maxContentY = Math.max(leftColumnEndY, rightColumnEndY)
 
+    // Adicionar investimento logo acima do rodapé (em formato de pílula)
+    if (cardapio.investimento) {
+      // Posicionar investimento logo acima do rodapé
+      const footerY = pageHeight - margin - 15
+      const footerCardHeight = 28
+      const investimentoY = footerY - 12 // Logo acima do rodapé
+      
+      // Texto do investimento para calcular largura (aumentado em 20%)
+      doc.setFontSize(14.4) // 12 * 1.2
+      doc.setFont("helvetica", "bold")
+      
+      const investimentoValue = typeof cardapio.investimento === "number" ? cardapio.investimento : parseFloat(String(cardapio.investimento || "0"))
+      const formattedValue = investimentoValue.toLocaleString("pt-BR", {
+        style: "currency",
+        currency: "BRL",
+      })
+      
+      const text = `Investimento: ${formattedValue}`
+      const textWidth = doc.getTextWidth(text)
+      
+      // Dimensões do badge em formato de pílula (maior)
+      const padding = 12
+      const badgeWidth = textWidth + padding * 2
+      const badgeHeight = 12
+      const borderRadius = badgeHeight / 2 // Raio para bordas arredondadas
+      const badgeX = pageWidth / 2 - badgeWidth / 2
+      const badgeY = investimentoY - badgeHeight / 2
+      
+      // Desenhar badge em formato de pílula (retângulo com bordas arredondadas)
+      // Fundo branco sem borda dourada
+      doc.setFillColor(white[0], white[1], white[2])
+      doc.setDrawColor(white[0], white[1], white[2])
+      doc.setLineWidth(0)
+      
+      // Retângulo central
+      doc.rect(badgeX + borderRadius, badgeY, badgeWidth - borderRadius * 2, badgeHeight, "FD")
+      
+      // Círculos nas extremidades para criar bordas arredondadas (sem borda)
+      doc.circle(badgeX + borderRadius, badgeY + borderRadius, borderRadius, "F")
+      doc.circle(badgeX + badgeWidth - borderRadius, badgeY + borderRadius, borderRadius, "F")
+      
+      // Texto do investimento em verde escuro
+      doc.setTextColor(darkGreen[0], darkGreen[1], darkGreen[2])
+      doc.setFontSize(12)
+      doc.setFont("helvetica", "bold")
+      doc.text(text, pageWidth / 2, investimentoY + 2, { align: "center" })
+    }
+
     // Informações adicionais
-    const spaceForFooter = 30
-    const availableSpace = pageHeight - maxContentY - spaceForFooter
     const hasAdditionalInfo = cardapio.informacoes_adicionais?.trim()
 
     if (hasAdditionalInfo && cardapio.informacoes_adicionais) {
-      doc.setFontSize(10)
+      // Calcular posição do investimento para posicionar informações adicionais logo acima
+      const footerY = pageHeight - margin - 15
+      const investimentoY = footerY - 12 // Posição Y do investimento
+      
+      doc.setFontSize(12) // 10 * 1.2
       doc.setFont("helvetica", "normal")
       const lines = doc.splitTextToSize(cardapio.informacoes_adicionais, contentWidth - 10)
-      const textHeight = lines.length * 5 + 25
+      const textHeight = lines.length * 5
+      
+      // Posicionar logo acima do investimento (com espaço de 8mm)
+      const startInfoY = investimentoY - textHeight - 8
 
-      const startY = maxContentY + 12
-
-      if (textHeight <= availableSpace && startY < pageHeight - spaceForFooter - textHeight) {
-        // Cabe na primeira página - com card decorativo
-        createCard(margin, startY, contentWidth, sectionTitleHeight + 2, gold, darkGold)
+      // Verificar se cabe na página atual
+      if (startInfoY > maxContentY + 10) {
+        // Apenas texto, sem caixa dourada - posicionado logo acima do investimento
         doc.setTextColor(white[0], white[1], white[2])
-        doc.setFontSize(13)
-        doc.setFont("helvetica", "bold")
-        doc.setFillColor(white[0], white[1], white[2])
-        doc.circle(margin + 5, startY + 5, 1.5, "F")
-        doc.text("Informações Adicionais", margin + 9, startY + 7)
-        doc.setFontSize(10)
+        doc.setFontSize(12) // 10 * 1.2
         doc.setFont("helvetica", "normal")
-        doc.text(lines, margin + 6, startY + 20)
+        doc.text(lines, margin + 3, startInfoY)
       } else {
-        // Nova página com card decorativo
+        // Não cabe, criar nova página
         doc.addPage()
         addPageBackground()
-        createCard(margin, margin, contentWidth, sectionTitleHeight + 2, gold, darkGold)
         doc.setTextColor(white[0], white[1], white[2])
-        doc.setFontSize(15)
-        doc.setFont("helvetica", "bold")
-        doc.setFillColor(white[0], white[1], white[2])
-        doc.circle(margin + 5, margin + 5, 1.5, "F")
-        doc.text("Informações Adicionais", margin + 9, margin + 7)
-        doc.setFontSize(10.5)
+        doc.setFontSize(12) // 10 * 1.2
         doc.setFont("helvetica", "normal")
-        doc.text(lines, margin + 6, margin + 22)
+        doc.text(lines, margin + 3, margin + 10)
       }
     }
 
-    // Rodapé decorativo com card
-    const footerY = pageHeight - margin - 15
-    const footerCardHeight = 28
-    createCard(margin, footerY, contentWidth, footerCardHeight, lightGreen, gold)
+    // Adicionar investimento logo acima do rodapé (em formato de pílula)
+    const investimentoFooterY = pageHeight - margin - 15
     
-    // Linha decorativa acima do rodapé
-    doc.setDrawColor(gold[0], gold[1], gold[2])
-    doc.setLineWidth(0.8)
-    doc.line(margin + 10, footerY, pageWidth - margin - 10, footerY)
-    
-    // Ícone de café decorativo
-    doc.setFillColor(gold[0], gold[1], gold[2])
-    doc.circle(margin + 8, footerY + 6, 3, "F")
-    doc.setFillColor(lightGold[0], lightGold[1], lightGold[2])
-    doc.circle(margin + 8, footerY + 6, 2, "F")
+    if (cardapio.investimento) {
+      // Posicionar investimento logo acima do rodapé
+      const investimentoY = investimentoFooterY - 12 // Logo acima do rodapé
+      
+      // Texto do investimento para calcular largura (aumentado em 20%)
+      doc.setFontSize(14.4) // 12 * 1.2
+      doc.setFont("helvetica", "bold")
+      
+      const investimentoValue = typeof cardapio.investimento === "number" ? cardapio.investimento : parseFloat(String(cardapio.investimento || "0"))
+      const formattedValue = investimentoValue.toLocaleString("pt-BR", {
+        style: "currency",
+        currency: "BRL",
+      })
+      
+      const text = `Investimento: ${formattedValue}`
+      const textWidth = doc.getTextWidth(text)
+      
+      // Dimensões do badge em formato de pílula (maior)
+      const padding = 12
+      const badgeWidth = textWidth + padding * 2
+      const badgeHeight = 12
+      const borderRadius = badgeHeight / 2 // Raio para bordas arredondadas
+      const badgeX = pageWidth / 2 - badgeWidth / 2
+      const badgeY = investimentoY - badgeHeight / 2
+      
+      // Desenhar badge em formato de pílula (retângulo com bordas arredondadas)
+      // Fundo branco sem borda dourada
+      doc.setFillColor(white[0], white[1], white[2])
+      doc.setDrawColor(white[0], white[1], white[2])
+      doc.setLineWidth(0)
+      
+      // Retângulo central
+      doc.rect(badgeX + borderRadius, badgeY, badgeWidth - borderRadius * 2, badgeHeight, "FD")
+      
+      // Círculos nas extremidades para criar bordas arredondadas (sem borda)
+      doc.circle(badgeX + borderRadius, badgeY + borderRadius, borderRadius, "F")
+      doc.circle(badgeX + badgeWidth - borderRadius, badgeY + borderRadius, borderRadius, "F")
+      
+      // Texto do investimento em verde escuro
+      doc.setTextColor(darkGreen[0], darkGreen[1], darkGreen[2])
+      doc.setFontSize(12)
+      doc.setFont("helvetica", "bold")
+      doc.text(text, pageWidth / 2, investimentoY + 2, { align: "center" })
+    }
+
+    // Rodapé - textos lado a lado no final da página
+    const footerY = pageHeight - margin - 5
     
     doc.setTextColor(white[0], white[1], white[2])
-    doc.setFontSize(9.5)
-    doc.setFont("helvetica", "bold")
-    doc.text("www.elevecafe.com.br", pageWidth / 2, footerY + 8, { align: "center" })
-    doc.setFontSize(9)
+    doc.setFontSize(10.8) // 9 * 1.2
     doc.setFont("helvetica", "normal")
-    doc.text("WhatsApp: (21) 96591-3009", pageWidth / 2, footerY + 14, { align: "center" })
-    doc.text("Instagram: @eleve.cafe", pageWidth / 2, footerY + 20, { align: "center" })
     
-    // Decorações nas laterais do rodapé
-    doc.setFillColor(gold[0], gold[1], gold[2])
-    doc.circle(margin + 5, footerY + footerCardHeight / 2, 2, "F")
-    doc.circle(pageWidth - margin - 5, footerY + footerCardHeight / 2, 2, "F")
+    // Calcular larguras dos textos
+    const siteText = "www.elevecafe.com.br"
+    const whatsappText = "WhatsApp: (21) 96591-3009"
+    const instagramText = "Instagram: @eleve.cafe"
+    
+    const siteWidth = doc.getTextWidth(siteText)
+    const whatsappWidth = doc.getTextWidth(whatsappText)
+    const instagramWidth = doc.getTextWidth(instagramText)
+    
+    const totalWidth = siteWidth + whatsappWidth + instagramWidth
+    const spacing = (pageWidth - margin * 2 - totalWidth) / 4 // Espaço entre textos e nas laterais
+    
+    // Posicionar textos lado a lado
+    let currentX = margin + spacing
+    doc.text(siteText, currentX, footerY)
+    
+    currentX += siteWidth + spacing
+    doc.text(whatsappText, currentX, footerY)
+    
+    currentX += whatsappWidth + spacing
+    doc.text(instagramText, currentX, footerY)
 
     // Salvar PDF
     const fileName = `cardapio-${cardapio.data || "evento"}.pdf`
@@ -573,6 +728,7 @@ export default function CardapiosPage() {
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead>Cliente</TableHead>
                   <TableHead>Data</TableHead>
                   <TableHead>Horário</TableHead>
                   <TableHead>Participantes</TableHead>
@@ -585,6 +741,11 @@ export default function CardapiosPage() {
               <TableBody>
                 {filteredCardapios.map((cardapio) => (
                   <TableRow key={cardapio.id}>
+                    <TableCell>
+                      <div className="font-medium">
+                        {cardapio.nome_cliente || "-"}
+                      </div>
+                    </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
                         <Calendar className="h-4 w-4 text-muted-foreground" />
@@ -648,14 +809,23 @@ export default function CardapiosPage() {
                       </div>
                     </TableCell>
                     <TableCell>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => generatePDF(cardapio)}
-                      >
-                        <Download className="h-4 w-4 mr-2" />
-                        PDF
-                      </Button>
+                      <div className="flex gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => generatePDF(cardapio)}
+                        >
+                          <Download className="h-4 w-4 mr-2" />
+                          PDF
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => window.location.href = `/dashboard/cardapios/${cardapio.id}/edit`}
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}

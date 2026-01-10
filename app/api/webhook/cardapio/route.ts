@@ -30,17 +30,22 @@ export async function POST(request: NextRequest) {
       horarioInicio,
       horarioFim,
       quantidadeParticipantes,
+      nomeCliente,
+      local,
+      sanduiches,
       salgados,
       doces,
       bebidas,
+      titulo,
+      investimento,
       informacoesAdicionais,
       timestamp
     } = payload
 
-    if (!data || !horarioInicio || !horarioFim || !quantidadeParticipantes) {
+    if (!data || !horarioInicio || !quantidadeParticipantes) {
       console.error("[WEBHOOK] Campos obrigatórios faltando")
       return NextResponse.json(
-        { error: "Campos obrigatórios faltando: data, horarioInicio, horarioFim, quantidadeParticipantes" },
+        { error: "Campos obrigatórios faltando: data, horarioInicio, quantidadeParticipantes" },
         { 
           status: 400,
           headers: {
@@ -58,11 +63,16 @@ export async function POST(request: NextRequest) {
       .insert({
         data: data,
         horario_inicio: horarioInicio,
-        horario_fim: horarioFim,
+        horario_fim: horarioFim || horarioInicio,
         quantidade_participantes: quantidadeParticipantes,
+        nome_cliente: nomeCliente || null,
+        local: local || null,
+        sanduiches: sanduiches || [],
         salgados: salgados || [],
         doces: doces || [],
         bebidas: bebidas || {},
+        titulo: titulo || "COQUETEL",
+        investimento: investimento || null,
         informacoes_adicionais: informacoesAdicionais || null,
         timestamp: timestamp || new Date().toISOString()
       })
