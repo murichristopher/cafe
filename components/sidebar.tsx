@@ -5,7 +5,7 @@ import type React from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { motion } from "framer-motion"
-import { Calendar, Home, Settings, Users, MessageSquare, Package, FileText } from "lucide-react"
+import { Calendar, Home, Settings, Users, MessageSquare, Package, FileText, Mail } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import Image from "next/image"
@@ -94,6 +94,11 @@ export function SidebarContent() {
         {isAdmin && (
           <SidebarLink href="/dashboard/whatsapp" icon={<MessageSquare className="h-5 w-5" />}>
             Integração com WhatsApp
+          </SidebarLink>
+        )}
+        {isAdmin && (
+          <SidebarLink href="/dashboard/emails" icon={<Mail className="h-5 w-5" />}>
+            Emails
           </SidebarLink>
         )}
         <SidebarLink href="/dashboard/settings" icon={<Settings className="h-5 w-5" />}>
