@@ -3,7 +3,7 @@
 import { usePathname } from "next/navigation"
 import Link from "next/link"
 // Importe o ícone MessageSquare do lucide-react
-import { Calendar, Home, MessageSquare, Settings, Users, Package } from "lucide-react"
+import { Calendar, Home, MessageSquare, Settings, Users } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useAuth } from "@/contexts/auth-context"
 
@@ -39,17 +39,6 @@ export function MobileNav() {
             icon: Users,
             label: "Fornecedores",
             active: pathname.startsWith("/dashboard/fornecedores"),
-          },
-        ]
-      : []),
-    // Only show the "Estoque" tab to administrators
-    ...(isAdmin
-      ? [
-          {
-            href: "/dashboard/estoque",
-            icon: Package,
-            label: "Estoque",
-            active: pathname.startsWith("/dashboard/estoque"),
           },
         ]
       : []),

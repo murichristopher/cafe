@@ -9,7 +9,7 @@ import {
   AlertTriangle,
   History,
   Download,
-  BarChart3,
+  ArrowUpDown,
   Search,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -53,6 +53,7 @@ export default function EstoquePage() {
   const [historicoProduto, setHistoricoProduto] = useState<Produto | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
   const [activeTab, setActiveTab] = useState("produtos")
+  const [searchTerm, setSearchTerm] = useState("")
   const [filters, setFilters] = useState({
     search: "",
     produtoId: "",
@@ -166,7 +167,6 @@ export default function EstoquePage() {
     return "ok"
   }
 
-  // Estatísticas
   const estatisticas = useMemo(() => {
     const produtosComEstoqueBaixo = produtos.filter(
       (p) => p.estoque_minimo && p.estoque_atual <= p.estoque_minimo
@@ -189,17 +189,15 @@ export default function EstoquePage() {
     }
   }, [produtos, movimentacoes])
 
-  // Filtrar produtos
   const produtosFiltrados = useMemo(() => {
     return produtos.filter((produto) => {
-      if (filters.search && !produto.nome.toLowerCase().includes(filters.search.toLowerCase())) {
+      if (searchTerm && !produto.nome.toLowerCase().includes(searchTerm.toLowerCase())) {
         return false
       }
       return true
     })
-  }, [produtos, filters.search])
+  }, [produtos, searchTerm])
 
-  // Filtrar movimentações
   const movimentacoesFiltradas = useMemo(() => {
     return movimentacoes.filter((mov) => {
       if (filters.produtoId) {
@@ -264,7 +262,7 @@ export default function EstoquePage() {
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold">Gestão de Estoque</h1>
-          <p className="text-muted-foreground">Controle completo de produtos e movimentações</p>
+          <p className="text-muted-foreground">Controle de produtos e movimentações</p>
         </div>
         <div className="flex gap-2">
           <ProdutoFormDialog onSuccess={fetchProdutos} />
@@ -345,9 +343,7 @@ export default function EstoquePage() {
                     key={produto.id}
                     variant="outline"
                     className="border-yellow-500 text-yellow-500 cursor-pointer hover:bg-yellow-500/20"
-                    onClick={() => {
-                      setHistoricoProduto(produto)
-                    }}
+                    onClick={() => setHistoricoProduto(produto)}
                   >
                     {produto.nome} - {produto.estoque_atual} {produto.unidade_medida}
                   </Badge>
@@ -361,7 +357,7 @@ export default function EstoquePage() {
         <div className="flex justify-between items-center">
           <TabsList>
             <TabsTrigger value="produtos">Produtos</TabsTrigger>
-            <TabsTrigger value="movimentacoes">Movimentações</TabsTrigger>
+            <TabsTrigger value="movimentacoes">Histórico</TabsTrigger>
           </TabsList>
           {activeTab === "movimentacoes" && (
             <Button
@@ -376,107 +372,120 @@ export default function EstoquePage() {
           )}
         </div>
 
+        {/* TAB PRODUTOS - CARDS */}
         <TabsContent value="produtos" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <div className="flex justify-between items-center">
-                <div>
-                  <CardTitle>Lista de Produtos</CardTitle>
-                  <CardDescription>Gerencie seus produtos e estoque atual</CardDescription>
-                </div>
-                <div className="flex gap-2">
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      placeholder="Buscar produto..."
-                      value={filters.search}
-                      onChange={(e) => setFilters({ ...filters, search: e.target.value })}
-                      className="pl-10 w-64 bg-[#111] border-zinc-700"
-                    />
-                  </div>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent>
-              {loading ? (
-                <div className="text-center py-8">Carregando produtos...</div>
-              ) : produtosFiltrados.length === 0 ? (
-                <div className="text-center py-8 text-muted-foreground">
-                  {filters.search
-                    ? "Nenhum produto encontrado com essa busca."
-                    : "Nenhum produto cadastrado. Clique em 'Novo Produto' para começar."}
-                </div>
-              ) : (
-                <div className="rounded-md border border-zinc-800">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Produto</TableHead>
-                        <TableHead>Unidade</TableHead>
-                        <TableHead>Estoque Atual</TableHead>
-                        <TableHead>Estoque Mínimo</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead className="text-right">Ações</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {produtosFiltrados.map((produto) => {
-                        const status = getEstoqueStatus(produto)
-                        return (
-                          <TableRow key={produto.id} className="hover:bg-zinc-900/50">
-                            <TableCell className="font-medium">{produto.nome}</TableCell>
-                            <TableCell>{produto.unidade_medida}</TableCell>
-                            <TableCell>
-                              <div className="flex items-center gap-2">
-                                <Package className="h-4 w-4 text-muted-foreground" />
-                                <span className="font-semibold">
-                                  {produto.estoque_atual} {produto.unidade_medida}
-                                </span>
-                              </div>
-                            </TableCell>
-                            <TableCell>
-                              {produto.estoque_minimo || 0} {produto.unidade_medida}
-                            </TableCell>
-                            <TableCell>
-                              {status === "low" ? (
-                                <Badge variant="destructive">Estoque Baixo</Badge>
-                              ) : (
-                                <Badge variant="outline" className="text-green-500 border-green-500">
-                                  OK
-                                </Badge>
-                              )}
-                            </TableCell>
-                            <TableCell className="text-right">
-                              <div className="flex justify-end gap-2">
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  onClick={() => setHistoricoProduto(produto)}
-                                  title="Ver histórico"
-                                >
-                                  <History className="h-4 w-4" />
-                                </Button>
-                                <ProdutoFormDialog produto={produto} onSuccess={fetchProdutos} />
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  onClick={() => handleDeleteClick(produto)}
-                                >
-                                  <Trash2 className="h-4 w-4 text-destructive" />
-                                </Button>
-                              </div>
-                            </TableCell>
-                          </TableRow>
-                        )
-                      })}
-                    </TableBody>
-                  </Table>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+          {/* Barra de pesquisa */}
+          <div className="relative max-w-sm">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Pesquisar produto..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10 bg-[#111] border-zinc-700"
+            />
+          </div>
+
+          {loading ? (
+            <div className="text-center py-12 text-muted-foreground">Carregando produtos...</div>
+          ) : produtosFiltrados.length === 0 ? (
+            <div className="text-center py-12 text-muted-foreground">
+              {searchTerm
+                ? "Nenhum produto encontrado com essa busca."
+                : "Nenhum produto cadastrado. Clique em 'Novo Produto' para começar."}
+            </div>
+          ) : (
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              {produtosFiltrados.map((produto) => {
+                const status = getEstoqueStatus(produto)
+                const isLow = status === "low"
+                return (
+                  <Card
+                    key={produto.id}
+                    className={`border transition-colors ${
+                      isLow
+                        ? "border-yellow-500/50 bg-yellow-500/5"
+                        : "border-zinc-800 bg-[#1a1a1a]"
+                    }`}
+                  >
+                    <CardHeader className="pb-3">
+                      <div className="flex items-start justify-between gap-2">
+                        <CardTitle className="text-base leading-tight">{produto.nome}</CardTitle>
+                        {isLow ? (
+                          <Badge variant="outline" className="border-yellow-500 text-yellow-500 shrink-0 text-xs">
+                            Baixo
+                          </Badge>
+                        ) : (
+                          <Badge variant="outline" className="border-green-500 text-green-500 shrink-0 text-xs">
+                            OK
+                          </Badge>
+                        )}
+                      </div>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      {/* Quantidade em destaque */}
+                      <div className="text-center py-2 rounded-lg bg-zinc-900/50 border border-zinc-800">
+                        <p className="text-3xl font-bold text-white">
+                          {produto.estoque_atual % 1 === 0
+                            ? produto.estoque_atual
+                            : produto.estoque_atual.toFixed(2)}
+                        </p>
+                        <p className="text-xs text-muted-foreground mt-1">{produto.unidade_medida}</p>
+                        {produto.estoque_minimo !== null && produto.estoque_minimo !== undefined && (
+                          <p className="text-xs text-muted-foreground">
+                            mín: {produto.estoque_minimo} {produto.unidade_medida}
+                          </p>
+                        )}
+                      </div>
+
+                      {/* Botões de ação */}
+                      <div className="grid grid-cols-2 gap-2">
+                        <MovimentacaoFormDialog
+                          produtoId={produto.id}
+                          onSuccess={() => {
+                            fetchMovimentacoes()
+                            fetchProdutos()
+                          }}
+                          trigger={
+                            <Button
+                              size="sm"
+                              className="w-full bg-amber-500 hover:bg-amber-600 text-black text-xs"
+                            >
+                              <ArrowUpDown className="mr-1 h-3 w-3" />
+                              Movimentar
+                            </Button>
+                          }
+                        />
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="w-full border-zinc-700 text-xs"
+                          onClick={() => setHistoricoProduto(produto)}
+                        >
+                          <History className="mr-1 h-3 w-3" />
+                          Histórico
+                        </Button>
+                      </div>
+
+                      <div className="flex justify-between gap-2">
+                        <ProdutoFormDialog produto={produto} onSuccess={fetchProdutos} />
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-destructive hover:text-destructive"
+                          onClick={() => handleDeleteClick(produto)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )
+              })}
+            </div>
+          )}
         </TabsContent>
 
+        {/* TAB HISTÓRICO DE MOVIMENTAÇÕES */}
         <TabsContent value="movimentacoes" className="space-y-4">
           <Card>
             <CardHeader>

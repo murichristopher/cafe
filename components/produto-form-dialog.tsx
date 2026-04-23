@@ -32,6 +32,7 @@ export function ProdutoFormDialog({ produto, onSuccess }: ProdutoFormDialogProps
     descricao: produto?.descricao || "",
     unidade_medida: produto?.unidade_medida || "uni",
     estoque_minimo: produto?.estoque_minimo?.toString() || "0",
+    custo_unitario: produto?.custo_unitario?.toString() || "0",
   })
   const [errors, setErrors] = useState<Record<string, string>>({})
 
@@ -88,6 +89,7 @@ export function ProdutoFormDialog({ produto, onSuccess }: ProdutoFormDialogProps
           descricao: formData.descricao.trim() || null,
           unidade_medida: formData.unidade_medida.trim(),
           estoque_minimo: parseFloat(formData.estoque_minimo) || 0,
+          custo_unitario: parseFloat(formData.custo_unitario) || 0,
         }),
       })
 
@@ -104,7 +106,7 @@ export function ProdutoFormDialog({ produto, onSuccess }: ProdutoFormDialogProps
           : "O produto foi criado com sucesso.",
       })
 
-      setFormData({ nome: "", descricao: "", unidade_medida: "uni", estoque_minimo: "0" })
+      setFormData({ nome: "", descricao: "", unidade_medida: "uni", estoque_minimo: "0", custo_unitario: "0" })
       setOpen(false)
       onSuccess()
     } catch (error: any) {
@@ -200,6 +202,21 @@ export function ProdutoFormDialog({ produto, onSuccess }: ProdutoFormDialogProps
                 placeholder="0"
               />
               {errors.estoque_minimo && <p className="text-sm text-red-500">{errors.estoque_minimo}</p>}
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="custo_unitario">Custo Unitário (R$)</Label>
+              <Input
+                id="custo_unitario"
+                name="custo_unitario"
+                type="number"
+                min="0"
+                step="0.0001"
+                value={formData.custo_unitario}
+                onChange={handleChange}
+                className="bg-[#111] border-zinc-700"
+                placeholder="0.00"
+              />
+              <p className="text-xs text-muted-foreground">Usado para cálculo de custo nas fichas técnicas</p>
             </div>
           </div>
           <DialogFooter>

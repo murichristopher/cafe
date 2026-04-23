@@ -71,6 +71,7 @@ export type Produto = {
   unidade_medida: string;
   estoque_atual: number;
   estoque_minimo?: number | null;
+  custo_unitario?: number | null;
   created_at: string;
   updated_at: string;
 }

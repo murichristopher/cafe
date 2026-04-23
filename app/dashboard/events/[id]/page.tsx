@@ -18,6 +18,9 @@ import {
   Loader2,
   Pencil,
   DollarSign,
+  Link2,
+  Check,
+  MessageSquare,
 } from "lucide-react"
 import { useAuth } from "@/contexts/auth-context"
 import { supabase } from "@/lib/supabase"
@@ -47,6 +50,31 @@ export default function EventDetailsPage({ params }: { params: Promise<{ id: str
   const [activeTab, setActiveTab] = useState<string>("detalhes")
   const [error, setError] = useState<string | null>(null)
   const [fornecedores, setFornecedores] = useState<User[]>([])
+  const [linkCopiado, setLinkCopiado] = useState(false)
+  const [registros, setRegistros] = useState<any[]>([])
+  const [loadingRegistros, setLoadingRegistros] = useState(false)
+
+  const fetchRegistros = async () => {
+    setLoadingRegistros(true)
+    try {
+      const response = await fetch(`/api/eventos/${eventId}/registros`)
+      const data = await response.json()
+      if (data.registros) setRegistros(data.registros)
+    } catch {
+      // silently fail
+    } finally {
+      setLoadingRegistros(false)
+    }
+  }
+
+  const copiarLink = () => {
+    const link = `${window.location.origin}/eventos/${eventId}`
+    navigator.clipboard.writeText(link).then(() => {
+      setLinkCopiado(true)
+      setTimeout(() => setLinkCopiado(false), 2000)
+      toast({ title: "Link copiado!", description: link })
+    })
+  }
 
   // Verificar autenticação
   useEffect(() => {
@@ -123,6 +151,12 @@ export default function EventDetailsPage({ params }: { params: Promise<{ id: str
   useEffect(() => {
     fetchEvent()
   }, [eventId])
+
+  useEffect(() => {
+    if (activeTab === "respostas") {
+      fetchRegistros()
+    }
+  }, [activeTab])
 
   useEffect(() => {
     if (isLoading || !event || !user) return
@@ -341,8 +375,8 @@ export default function EventDetailsPage({ params }: { params: Promise<{ id: str
   // Verificar se todas as imagens foram enviadas
   const allImagesUploaded = event.imagem_chegada && event.imagem_inicio && event.imagem_final
 
-  // Mostrar abas se for fornecedor ou se for admin e houver imagens
-  const showTabs = isFornecedor || (isAdmin && hasImages)
+  // Mostrar abas se for fornecedor ou admin
+  const showTabs = isFornecedor || isAdmin
 
   // Atualizar o JSX para remover as referências ao modal de edição
   return (
@@ -362,6 +396,24 @@ export default function EventDetailsPage({ params }: { params: Promise<{ id: str
               <div className="flex gap-2">
                 {isAdmin && (
                   <>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={copiarLink}
+                      className="border-zinc-600 text-zinc-300 hover:bg-zinc-800 gap-1.5"
+                    >
+                      {linkCopiado ? (
+                        <>
+                          <Check className="h-4 w-4 text-green-400" />
+                          <span className="text-green-400 text-xs">Copiado!</span>
+                        </>
+                      ) : (
+                        <>
+                          <Link2 className="h-4 w-4" />
+                          <span className="text-xs">Copiar Link</span>
+                        </>
+                      )}
+                    </Button>
                     <Button
                       variant="outline"
                       size="icon"
@@ -401,7 +453,7 @@ export default function EventDetailsPage({ params }: { params: Promise<{ id: str
 
           {showTabs ? (
             <Tabs value={activeTab} onValueChange={setActiveTab} className="px-6">
-              <TabsList className="grid w-full grid-cols-2 bg-[#111111] dark:bg-[#111111]">
+              <TabsList className={`grid w-full bg-[#111111] dark:bg-[#111111] ${isAdmin ? "grid-cols-3" : "grid-cols-2"}`}>
                 <TabsTrigger
                   value="detalhes"
                   className="data-[state=active]:bg-yellow-400 data-[state=active]:text-black"
@@ -414,6 +466,20 @@ export default function EventDetailsPage({ params }: { params: Promise<{ id: str
                 >
                   Imagens
                 </TabsTrigger>
+                {isAdmin && (
+                  <TabsTrigger
+                    value="respostas"
+                    className="data-[state=active]:bg-yellow-400 data-[state=active]:text-black"
+                  >
+                    <MessageSquare className="mr-1 h-3 w-3" />
+                    Respostas
+                    {registros.length > 0 && (
+                      <span className="ml-1 rounded-full bg-amber-500 text-black text-xs px-1.5 py-0.5 font-bold leading-none">
+                        {registros.length}
+                      </span>
+                    )}
+                  </TabsTrigger>
+                )}
               </TabsList>
               <TabsContent value="detalhes">
                 <EventDetails event={event} fornecedores={fornecedores} isFornecedor={isFornecedor} user={user} />
@@ -480,9 +546,9 @@ export default function EventDetailsPage({ params }: { params: Promise<{ id: str
                   <EventImagesManagerV2
                     eventId={event.id}
                     currentImages={{
-                      chegada: event.imagem_chegada,
-                      inicio: event.imagem_inicio,
-                      final: event.imagem_final,
+                      chegada: event.imagem_chegada ?? null,
+                      inicio: event.imagem_inicio ?? null,
+                      final: event.imagem_final ?? null,
                     }}
                     onImagesUpdated={fetchEvent}
                   />
@@ -490,6 +556,16 @@ export default function EventDetailsPage({ params }: { params: Promise<{ id: str
                   <ViewEventImages event={event} />
                 )}
               </TabsContent>
+              {isAdmin && (
+                <TabsContent value="respostas" className="py-4">
+                  <EventRespostas
+                    registros={registros}
+                    loading={loadingRegistros}
+                    onRefresh={fetchRegistros}
+                    eventId={eventId}
+                  />
+                </TabsContent>
+              )}
             </Tabs>
           ) : (
             <CardContent className="space-y-6">
@@ -584,6 +660,95 @@ function ViewEventImages({ event }: { event: EventWithFornecedores }) {
           <div className="flex items-center justify-center p-8 text-gray-400">Nenhuma imagem foi enviada</div>
         )}
       </div>
+    </div>
+  )
+}
+
+// Componente para exibir respostas do link público do evento
+function EventRespostas({
+  registros,
+  loading,
+  onRefresh,
+  eventId,
+}: {
+  registros: any[]
+  loading: boolean
+  onRefresh: () => void
+  eventId: string
+}) {
+  const [copied, setCopied] = useState(false)
+
+  const copyLink = () => {
+    const link = `${window.location.origin}/eventos/${eventId}`
+    navigator.clipboard.writeText(link).then(() => {
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    })
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <div>
+          <h3 className="font-semibold text-white">Respostas recebidas</h3>
+          <p className="text-xs text-muted-foreground">
+            Registros enviados pelo link público do evento
+          </p>
+        </div>
+        <div className="flex gap-2">
+          <Button variant="outline" size="sm" onClick={copyLink} className="border-zinc-700 text-xs gap-1">
+            {copied ? <><Check className="h-3 w-3 text-green-400" /> Copiado!</> : <><Link2 className="h-3 w-3" /> Copiar Link</>}
+          </Button>
+          <Button variant="outline" size="sm" onClick={onRefresh} className="border-zinc-700 text-xs">
+            Atualizar
+          </Button>
+        </div>
+      </div>
+
+      {loading ? (
+        <div className="text-center py-8 text-muted-foreground">
+          <Loader2 className="h-5 w-5 animate-spin mx-auto mb-2" />
+          Carregando respostas...
+        </div>
+      ) : registros.length === 0 ? (
+        <div className="text-center py-12 space-y-2">
+          <MessageSquare className="h-10 w-10 text-muted-foreground mx-auto" />
+          <p className="text-muted-foreground text-sm">Nenhuma resposta ainda.</p>
+          <p className="text-xs text-muted-foreground">
+            Compartilhe o link do evento para receber registros.
+          </p>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {registros.map((reg) => (
+            <div
+              key={reg.id}
+              className="flex items-start gap-3 rounded-lg border border-zinc-800 bg-zinc-900/40 p-3"
+            >
+              {reg.foto_url ? (
+                <img
+                  src={reg.foto_url}
+                  alt={reg.nome}
+                  className="h-14 w-14 rounded-md object-cover border border-zinc-700 shrink-0"
+                />
+              ) : (
+                <div className="h-14 w-14 rounded-md bg-zinc-800 border border-zinc-700 flex items-center justify-center shrink-0">
+                  <span className="text-2xl font-bold text-zinc-500">
+                    {reg.nome.charAt(0).toUpperCase()}
+                  </span>
+                </div>
+              )}
+              <div className="flex-1 min-w-0">
+                <p className="font-medium text-white">{reg.nome}</p>
+                <p className="text-sm text-muted-foreground">{reg.telefone}</p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {new Date(reg.created_at).toLocaleString("pt-BR")}
+                </p>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 }

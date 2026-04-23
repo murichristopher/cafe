@@ -30,9 +30,10 @@ import { supabase } from "@/lib/supabase"
 interface MovimentacaoFormDialogProps {
   produtoId?: string
   onSuccess: () => void
+  trigger?: React.ReactNode
 }
 
-export function MovimentacaoFormDialog({ produtoId, onSuccess }: MovimentacaoFormDialogProps) {
+export function MovimentacaoFormDialog({ produtoId, onSuccess, trigger }: MovimentacaoFormDialogProps) {
   const [open, setOpen] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [produtos, setProdutos] = useState<Produto[]>([])
@@ -193,9 +194,11 @@ export function MovimentacaoFormDialog({ produtoId, onSuccess }: MovimentacaoFor
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button className="bg-amber-500 hover:bg-amber-600">
-          <Plus className="mr-2 h-4 w-4" /> Nova Movimentação
-        </Button>
+        {trigger ?? (
+          <Button className="bg-amber-500 hover:bg-amber-600">
+            <Plus className="mr-2 h-4 w-4" /> Nova Movimentação
+          </Button>
+        )}
       </DialogTrigger>
       <DialogContent className="sm:max-w-[425px] bg-[#1a1a1a] border-zinc-800">
         <DialogHeader>
