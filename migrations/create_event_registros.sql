@@ -14,5 +14,8 @@ ALTER TABLE event_registros ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Admins podem ver registros" ON event_registros
   FOR SELECT USING (true);
 
+
 CREATE POLICY "Qualquer um pode inserir registro" ON event_registros
   FOR INSERT WITH CHECK (true);
+
+
