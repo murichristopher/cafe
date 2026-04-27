@@ -251,15 +251,15 @@ export function FichaTecnicaFormDialog({ ficha, onSuccess }: FichaTecnicaFormDia
             )}
 
             {ingredientes.map((ing, index) => (
-              <div key={index} className="grid grid-cols-[1fr_auto_auto_auto] gap-2 items-end">
+              <div key={index} className="flex flex-col sm:grid sm:grid-cols-[1fr_80px_72px_36px] gap-2">
                 <div className="grid gap-1">
-                  {index === 0 && <Label className="text-xs text-muted-foreground">Produto</Label>}
+                  {index === 0 && <Label className="text-xs text-muted-foreground hidden sm:block">Produto</Label>}
                   <Select
                     value={ing.produto_id}
                     onValueChange={(v) => updateIngrediente(index, "produto_id", v)}
                   >
                     <SelectTrigger className="bg-[#111] border-zinc-700 h-9 text-sm">
-                      <SelectValue placeholder="Selecione..." />
+                      <SelectValue placeholder="Selecione o produto..." />
                     </SelectTrigger>
                     <SelectContent className="bg-[#1a1a1a] border-zinc-700">
                       {produtos.map((p) => (
@@ -270,28 +270,30 @@ export function FichaTecnicaFormDialog({ ficha, onSuccess }: FichaTecnicaFormDia
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="grid gap-1 w-24">
-                  {index === 0 && <Label className="text-xs text-muted-foreground">Qtd</Label>}
-                  <Input
-                    type="number"
-                    min="0.0001"
-                    step="0.0001"
-                    value={ing.quantidade}
-                    onChange={(e) => updateIngrediente(index, "quantidade", e.target.value)}
-                    className="bg-[#111] border-zinc-700 h-9 text-sm"
-                    placeholder="0"
-                  />
+                <div className="grid grid-cols-2 gap-2 sm:contents">
+                  <div className="grid gap-1">
+                    {index === 0 && <Label className="text-xs text-muted-foreground hidden sm:block">Qtd</Label>}
+                    <Input
+                      type="number"
+                      min="0.0001"
+                      step="0.0001"
+                      value={ing.quantidade}
+                      onChange={(e) => updateIngrediente(index, "quantidade", e.target.value)}
+                      className="bg-[#111] border-zinc-700 h-9 text-sm"
+                      placeholder="Qtd"
+                    />
+                  </div>
+                  <div className="grid gap-1">
+                    {index === 0 && <Label className="text-xs text-muted-foreground hidden sm:block">Unidade</Label>}
+                    <Input
+                      value={ing.unidade_medida}
+                      onChange={(e) => updateIngrediente(index, "unidade_medida", e.target.value)}
+                      className="bg-[#111] border-zinc-700 h-9 text-sm"
+                      placeholder="un, kg..."
+                    />
+                  </div>
                 </div>
-                <div className="grid gap-1 w-20">
-                  {index === 0 && <Label className="text-xs text-muted-foreground">Unidade</Label>}
-                  <Input
-                    value={ing.unidade_medida}
-                    onChange={(e) => updateIngrediente(index, "unidade_medida", e.target.value)}
-                    className="bg-[#111] border-zinc-700 h-9 text-sm"
-                    placeholder="kg, un..."
-                  />
-                </div>
-                <div className={index === 0 ? "pt-5" : ""}>
+                <div className="flex justify-end sm:block sm:pt-0">
                   <Button
                     type="button"
                     variant="ghost"

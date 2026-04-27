@@ -741,6 +741,9 @@ function EventRespostas({
               <div className="flex-1 min-w-0">
                 <p className="font-medium text-white">{reg.nome}</p>
                 <p className="text-sm text-muted-foreground">{reg.telefone}</p>
+                {reg.cargo && (
+                  <p className="text-xs text-amber-400/80 mt-0.5">{reg.cargo}</p>
+                )}
                 <p className="text-xs text-muted-foreground mt-1">
                   {new Date(reg.created_at).toLocaleString("pt-BR")}
                 </p>

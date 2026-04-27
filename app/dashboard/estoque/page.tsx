@@ -258,13 +258,13 @@ export default function EstoquePage() {
   }
 
   return (
-    <div className="container mx-auto py-6 space-y-6">
-      <div className="flex justify-between items-center">
+    <div className="container mx-auto py-4 sm:py-6 space-y-4 sm:space-y-6 px-3 sm:px-4">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
         <div>
-          <h1 className="text-3xl font-bold">Gestão de Estoque</h1>
-          <p className="text-muted-foreground">Controle de produtos e movimentações</p>
+          <h1 className="text-2xl sm:text-3xl font-bold">Gestão de Estoque</h1>
+          <p className="text-muted-foreground text-sm">Controle de produtos e movimentações</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
           <ProdutoFormDialog onSuccess={fetchProdutos} />
           <MovimentacaoFormDialog
             onSuccess={() => {
@@ -509,7 +509,7 @@ export default function EstoquePage() {
                     : "Nenhuma movimentação encontrada com os filtros aplicados."}
                 </div>
               ) : (
-                <div className="rounded-md border border-zinc-800">
+                <div className="overflow-x-auto rounded-md border border-zinc-800">
                   <Table>
                     <TableHeader>
                       <TableRow>

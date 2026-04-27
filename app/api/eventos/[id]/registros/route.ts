@@ -27,7 +27,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const { id } = await params
   try {
     const body = await request.json()
-    const { nome, telefone, foto_url } = body
+    const { nome, telefone, cargo, foto_url } = body
 
     if (!nome?.trim() || !telefone?.trim()) {
       return NextResponse.json({ error: "Nome e telefone são obrigatórios" }, { status: 400 })
@@ -50,6 +50,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         event_id: id,
         nome: nome.trim(),
         telefone: telefone.trim(),
+        cargo: cargo?.trim() || null,
         foto_url: foto_url || null,
       })
       .select()

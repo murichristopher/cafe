@@ -86,11 +86,11 @@ export default function FichasTecnicasPage() {
     value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })
 
   return (
-    <div className="container mx-auto py-6 space-y-6">
-      <div className="flex justify-between items-center">
+    <div className="container mx-auto py-4 sm:py-6 space-y-4 sm:space-y-6 px-3 sm:px-4">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
         <div>
-          <h1 className="text-3xl font-bold">Fichas Técnicas</h1>
-          <p className="text-muted-foreground">Receitas e tabela de custo dos produtos produzidos</p>
+          <h1 className="text-2xl sm:text-3xl font-bold">Fichas Técnicas</h1>
+          <p className="text-muted-foreground text-sm">Receitas e tabela de custo dos produtos produzidos</p>
         </div>
         <FichaTecnicaFormDialog onSuccess={fetchFichas} />
       </div>
@@ -178,7 +178,7 @@ export default function FichasTecnicasPage() {
 
                 {isExpanded && (
                   <CardContent>
-                    <div className="rounded-md border border-zinc-800 overflow-hidden">
+                    <div className="overflow-x-auto rounded-md border border-zinc-800">
                       <Table>
                         <TableHeader>
                           <TableRow className="bg-zinc-900/50">
