@@ -1,0 +1,10 @@
+# cafe — scaffolded by webo. Run: docker compose -f deploy/docker-compose.yml up -d --build
+name: cafe
+services:
+  cafe:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
